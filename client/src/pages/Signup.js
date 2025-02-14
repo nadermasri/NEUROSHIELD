@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// client/src/pages/Signup.js
+import React, { useState, useEffect } from 'react';
 import { Container, Typography, TextField, Button } from '@mui/material';
 import styled from 'styled-components';
 import axios from 'axios';
@@ -14,8 +15,20 @@ const SignupContainer = styled(Container)`
 
 const Signup = () => {
   const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [csrfToken, setCsrfToken] = useState('');
   const navigate = useNavigate();
   
+  // Fetch CSRF token on mount
+  useEffect(() => {
+    axios.get('http://localhost:5000/api/csrf-token', { withCredentials: true })
+      .then(response => {
+        setCsrfToken(response.data.csrfToken);
+      })
+      .catch(error => {
+        console.error('Error fetching CSRF token:', error);
+      });
+  }, []);
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -23,11 +36,15 @@ const Signup = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/auth/signup', form);
+      await axios.post(
+        'http://localhost:5000/api/auth/signup',
+        form,
+        { headers: { 'csrf-token': csrfToken } }
+      );
       alert('Signup successful! Please login.');
       navigate('/tester-login');
     } catch (error) {
-      alert('Signup failed: ' + error.response.data.message);
+      alert('Signup failed: ' + (error.response.data.message || 'Unknown error'));
     }
   };
   

@@ -10,6 +10,8 @@ import Contact from './pages/Contact';
 import Signup from './pages/Signup';
 import TesterLogin from './pages/TesterLogin';
 import AdminLogin from './pages/AdminLogin';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 import TesterDashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
@@ -30,6 +32,8 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/tester-login" element={<TesterLogin />} />
         <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
         <Route path="/dashboard" element={<TesterDashboard />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />

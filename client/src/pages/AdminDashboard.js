@@ -1,5 +1,6 @@
+// client/src/pages/AdminDashboard.js
 import React, { useEffect, useState } from 'react';
-import { Container, Typography, Table, TableBody, TableCell, TableHead, TableRow, Paper, Accordion, AccordionSummary, AccordionDetails, Box, Button } from '@mui/material';
+import { Container, Typography, Table, TableBody, TableCell, TableHead, TableRow, Paper, Box, Button } from '@mui/material';
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material';
 import styled from 'styled-components';
 import axios from 'axios';
@@ -9,15 +10,25 @@ const DashboardContainer = styled(Container)`
   padding: 4rem;
 `;
 
+const MessagesSection = styled(Paper)`
+  background-color: #1a1a1a;
+  color: #ffffff;
+  padding: 2rem;
+  margin-top: 2rem;
+`;
+
 const AdminDashboard = () => {
   const [testerMetrics, setTesterMetrics] = useState([]);
   const [selectedTester, setSelectedTester] = useState(null);
+  const [contactMessages, setContactMessages] = useState([]);
 
-  // Fetch testers and their assessment metrics from the backend
+  // Function to fetch tester metrics
   const fetchTesterMetrics = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:5000/api/admin/users', { headers: { Authorization: token } });
+      const res = await axios.get('http://localhost:5000/api/admin/users', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setTesterMetrics(res.data);
     } catch (error) {
       console.error('Error fetching tester metrics:', error);
@@ -25,22 +36,24 @@ const AdminDashboard = () => {
     }
   };
 
-  useEffect(() => {
-    fetchTesterMetrics();
-  }, []);
-
-  // When "View Details" is clicked, set the selected tester.
-  // We expect that selectedTester.assessments is an array.
-  const handleViewDetails = (testerData) => {
-    setSelectedTester(testerData);
+  // Function to fetch contact messages (admin only)
+  const fetchContactMessages = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get('http://localhost:5000/api/admin/contacts', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setContactMessages(res.data);
+    } catch (error) {
+      console.error('Error fetching contact messages:', error);
+      alert('Error fetching contact messages');
+    }
   };
 
-  // If a tester is selected, determine their latest assessment (by createdAt)
-  const latestAssessment = selectedTester && selectedTester.assessments && selectedTester.assessments.length > 0
-    ? selectedTester.assessments.reduce((prev, curr) =>
-        new Date(prev.createdAt) > new Date(curr.createdAt) ? prev : curr
-      )
-    : null;
+  useEffect(() => {
+    fetchTesterMetrics();
+    fetchContactMessages();
+  }, []);
 
   return (
     <DashboardContainer>
@@ -48,6 +61,7 @@ const AdminDashboard = () => {
         <Typography variant="h3" align="center" style={{ color: '#00bcd4', fontWeight: 'bold', marginBottom: '2rem' }}>
           Admin Dashboard
         </Typography>
+        {/* Existing Tester Metrics Table */}
         <Paper sx={{ width: '100%', overflowX: 'auto', backgroundColor: '#1a1a1a', marginBottom: '2rem' }}>
           <Table>
             <TableHead>
@@ -65,7 +79,11 @@ const AdminDashboard = () => {
                   <TableCell style={{ color: '#ffffff' }}>{item.tester.email}</TableCell>
                   <TableCell style={{ color: '#ffffff' }}>{item.assessmentCount}</TableCell>
                   <TableCell>
-                    <Button variant="contained" style={{ backgroundColor: '#00bcd4', color: '#ffffff' }} onClick={() => handleViewDetails(item)}>
+                    <Button
+                      variant="contained"
+                      style={{ backgroundColor: '#00bcd4', color: '#ffffff' }}
+                      onClick={() => setSelectedTester(item)}
+                    >
                       View Details
                     </Button>
                   </TableCell>
@@ -74,50 +92,48 @@ const AdminDashboard = () => {
             </TableBody>
           </Table>
         </Paper>
+
+        {/* Contact Messages Section (Admin Only) */}
+        <MessagesSection elevation={3}>
+          <Typography variant="h4" align="center" style={{ color: '#00bcd4', fontWeight: 'bold', marginBottom: '1rem' }}>
+            Contact Messages
+          </Typography>
+          {contactMessages.length === 0 ? (
+            <Typography variant="body1" style={{ color: '#ffffff' }}>
+              No messages received.
+            </Typography>
+          ) : (
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell style={{ color: '#00bcd4', fontWeight: 'bold' }}>Name</TableCell>
+                  <TableCell style={{ color: '#00bcd4', fontWeight: 'bold' }}>Email</TableCell>
+                  <TableCell style={{ color: '#00bcd4', fontWeight: 'bold' }}>Subject</TableCell>
+                  <TableCell style={{ color: '#00bcd4', fontWeight: 'bold' }}>Message</TableCell>
+                  <TableCell style={{ color: '#00bcd4', fontWeight: 'bold' }}>Date</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {contactMessages.map((msg) => (
+                  <TableRow key={msg._id}>
+                    <TableCell style={{ color: '#00bcd4' }}>{msg.name}</TableCell>
+                    <TableCell style={{ color: '#d3d3d3' }}>{msg.email}</TableCell>
+                    <TableCell style={{ color: '#d3d3d3' }}>{msg.subject || 'N/A'}</TableCell>
+                    <TableCell style={{ color: '#d3d3d3' }}>{msg.message}</TableCell>
+                    <TableCell style={{ color: '#d3d3d3' }}>{new Date(msg.createdAt).toLocaleDateString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </MessagesSection>
+
+        {/* Optional: Additional admin functionality (e.g., viewing tester details) */}
         {selectedTester && (
           <Box sx={{ marginTop: '2rem', backgroundColor: '#1a1a1a', padding: '1rem', borderRadius: '8px' }}>
             <Typography variant="h5" style={{ color: '#00bcd4', fontWeight: 'bold', marginBottom: '1rem' }}>
               Details for {selectedTester.tester.name}
             </Typography>
-            <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff', marginBottom: '1rem' }}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
-                <Typography style={{ color: '#00bcd4', fontWeight: 'bold' }}>Profile Information</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Typography variant="body2">
-                  <strong>Email:</strong> {selectedTester.tester.email}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>Joined:</strong> {new Date(selectedTester.tester.createdAt).toLocaleDateString()}
-                </Typography>
-              </AccordionDetails>
-            </Accordion>
-            {latestAssessment ? (
-              <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff' }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
-                  <Typography style={{ color: '#00bcd4', fontWeight: 'bold' }}>Latest Assessment Details</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Typography variant="body2">
-                    <strong>Assessment Type:</strong> {latestAssessment.type}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Submitted:</strong> {new Date(latestAssessment.createdAt).toLocaleDateString()}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Security Score:</strong> {latestAssessment.data.securityScore ? latestAssessment.data.securityScore + '%' : 'N/A'}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Detected Vulnerabilities:</strong> {latestAssessment.data.vulnerabilities ? latestAssessment.data.vulnerabilities.join(', ') : 'None'}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Mitigation Strategies:</strong> {latestAssessment.data.mitigationStrategies ? latestAssessment.data.mitigationStrategies.join(', ') : 'None'}
-                  </Typography>
-                </AccordionDetails>
-              </Accordion>
-            ) : (
-              <Typography variant="body2" style={{ color: '#ffffff' }}>No assessments available for this tester.</Typography>
-            )}
             <Button onClick={() => setSelectedTester(null)} variant="outlined" style={{ marginTop: '1rem', color: '#00bcd4', borderColor: '#00bcd4' }}>
               Close Details
             </Button>

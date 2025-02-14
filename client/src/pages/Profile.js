@@ -18,7 +18,9 @@ const Profile = () => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:5000/api/users/profile', { headers: { Authorization: token } });
+      const res = await axios.get('http://localhost:5000/api/users/profile', { 
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setProfile({ name: res.data.name, email: res.data.email, password: '' });
       setLoading(false);
     } catch (error) {
@@ -39,7 +41,9 @@ const Profile = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put('http://localhost:5000/api/users/profile', profile, { headers: { Authorization: token } });
+      const res = await axios.put('http://localhost:5000/api/users/profile', profile, { 
+        headers: { Authorization: `Bearer ${token}` }
+      });
       alert('Profile updated successfully!');
       setProfile({ ...profile, password: '' });
     } catch (error) {
@@ -55,10 +59,50 @@ const Profile = () => {
         Your Profile
       </Typography>
       <form onSubmit={handleSubmit}>
-        <TextField label="Name" name="name" fullWidth value={profile.name} onChange={handleChange} margin="normal" variant="outlined" required InputLabelProps={{ style: { color: '#ffffff' } }} InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} />
-        <TextField label="Email" name="email" type="email" fullWidth value={profile.email} onChange={handleChange} margin="normal" variant="outlined" required InputLabelProps={{ style: { color: '#ffffff' } }} InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} disabled />
-        <TextField label="New Password" name="password" type="password" fullWidth value={profile.password} onChange={handleChange} margin="normal" variant="outlined" InputLabelProps={{ style: { color: '#ffffff' } }} InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} />
-        <Button type="submit" variant="contained" fullWidth style={{ backgroundColor: '#00bcd4', color: '#ffffff', marginTop: '1rem', fontWeight: 'bold' }}>
+        <TextField 
+          label="Name" 
+          name="name" 
+          fullWidth 
+          value={profile.name} 
+          onChange={handleChange} 
+          margin="normal" 
+          variant="outlined" 
+          required 
+          InputLabelProps={{ style: { color: '#ffffff' } }} 
+          InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} 
+        />
+        <TextField 
+          label="Email" 
+          name="email" 
+          type="email" 
+          fullWidth 
+          value={profile.email} 
+          onChange={handleChange} 
+          margin="normal" 
+          variant="outlined" 
+          required 
+          InputLabelProps={{ style: { color: '#ffffff' } }} 
+          InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} 
+          disabled 
+        />
+        <TextField 
+          label="New Password" 
+          name="password" 
+          type="password" 
+          fullWidth 
+          value={profile.password} 
+          onChange={handleChange} 
+          margin="normal" 
+          variant="outlined" 
+          InputLabelProps={{ style: { color: '#ffffff' } }} 
+          InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} 
+        />
+        <Button 
+          type="submit" 
+          variant="contained" 
+          fullWidth 
+          style={{ backgroundColor: '#00bcd4', color: '#ffffff', marginTop: '1rem', fontWeight: 'bold' }}
+        >
           Update Profile
         </Button>
       </form>

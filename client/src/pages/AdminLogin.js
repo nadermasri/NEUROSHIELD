@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+// client/src/pages/AdminLogin.js
+import React, { useState, useEffect } from 'react';
 import { Container, Typography, TextField, Button } from '@mui/material';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+
+// Ensure credentials (cookies) are sent with every request.
+axios.defaults.withCredentials = true;
 
 const LoginContainer = styled(Container)`
   padding: 4rem;
@@ -15,19 +19,38 @@ const LoginContainer = styled(Container)`
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [csrfToken, setCsrfToken] = useState('');
   const navigate = useNavigate();
+
+  // Fetch the CSRF token when the component mounts.
+  useEffect(() => {
+    axios
+      .get('http://localhost:5000/api/csrf-token')
+      .then(response => {
+        setCsrfToken(response.data.csrfToken);
+      })
+      .catch(error => {
+        console.error('Error fetching CSRF token:', error);
+      });
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', { email, password, role: 'admin' });
-      if (res.data.token) {
-        localStorage.setItem('token', res.data.token);
+      const res = await axios.post(
+        'http://localhost:5000/api/auth/login',
+        { email, password, role: 'admin' },
+        { headers: { 'csrf-token': csrfToken } }
+      );
+      // Note: The backend sends back an "accessToken" field.
+      if (res.data.accessToken) {
+        localStorage.setItem('token', res.data.accessToken);
         localStorage.setItem('role', 'admin');
         navigate('/admin-dashboard');
       }
     } catch (err) {
       alert('Login failed. Please check your credentials.');
+      console.error('Login error:', err);
     }
   };
 
@@ -37,9 +60,36 @@ const AdminLogin = () => {
         Admin Login
       </Typography>
       <form onSubmit={handleLogin}>
-        <TextField label="Email" type="email" fullWidth value={email} onChange={(e) => setEmail(e.target.value)} margin="normal" variant="outlined" required InputLabelProps={{ style: { color: '#ffffff' } }} InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} />
-        <TextField label="Password" type="password" fullWidth value={password} onChange={(e) => setPassword(e.target.value)} margin="normal" variant="outlined" required InputLabelProps={{ style: { color: '#ffffff' } }} InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} />
-        <Button type="submit" variant="contained" fullWidth style={{ backgroundColor: '#00bcd4', color: '#ffffff', marginTop: '1rem', fontWeight: 'bold' }}>
+        <TextField 
+          label="Email" 
+          type="email" 
+          fullWidth 
+          value={email} 
+          onChange={(e) => setEmail(e.target.value)} 
+          margin="normal" 
+          variant="outlined" 
+          required 
+          InputLabelProps={{ style: { color: '#ffffff' } }} 
+          InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} 
+        />
+        <TextField 
+          label="Password" 
+          type="password" 
+          fullWidth 
+          value={password} 
+          onChange={(e) => setPassword(e.target.value)} 
+          margin="normal" 
+          variant="outlined" 
+          required 
+          InputLabelProps={{ style: { color: '#ffffff' } }} 
+          InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} 
+        />
+        <Button 
+          type="submit" 
+          variant="contained" 
+          fullWidth 
+          style={{ backgroundColor: '#00bcd4', color: '#ffffff', marginTop: '1rem', fontWeight: 'bold' }}
+        >
           Login
         </Button>
       </form>

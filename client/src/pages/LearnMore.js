@@ -20,24 +20,24 @@ const LearnMore = () => {
         </AccordionSummary>
         <AccordionDetails>
           <Typography variant="body2" paragraph>
-            NeuroShield is divided into four key phases:
+            NeuroShield’s solution is divided into four key phases:
           </Typography>
           <List>
             <ListItem>
-              <ListItemText primary="Data Assessment: Collect and analyze training data to identify inconsistencies, biases, and poisoning attempts." />
+              <ListItemText primary="Data Assessment: Collect and clean training data, identify biases and anomalies, and detect data poisoning attempts." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
             </ListItem>
             <ListItem>
-              <ListItemText primary="Model Assessment: Evaluate your AI model’s code and architecture to detect potential vulnerabilities." />
+              <ListItemText primary="Model Assessment: Evaluate your AI model’s source code and architecture for vulnerabilities using advanced tools like CodeBERT." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
             </ListItem>
             <ListItem>
-              <ListItemText primary="Attack Simulation: Mimic adversarial attacks such as inference, extraction, and evasion to test model robustness." />
+              <ListItemText primary="Attack Simulation: Simulate real-world adversarial attacks to stress-test model robustness and identify hidden vulnerabilities." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
             </ListItem>
             <ListItem>
-              <ListItemText primary="Result Dashboard & Recommendation System: Present detailed vulnerability scores, phase-specific results, and actionable mitigation strategies." />
+              <ListItemText primary="Result Dashboard & Recommendation System: Present vulnerability scores, phase-specific insights, and actionable mitigation strategies in a user-friendly dashboard." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
             </ListItem>
           </List>
           <Typography variant="body2">
-            By integrating these phases, NeuroShield delivers a comprehensive solution that adapts to emerging threats and maintains optimal security standards.
+            These phases work together to provide a complete security evaluation, enabling organizations to secure their AI systems against emerging threats.
           </Typography>
         </AccordionDetails>
       </Accordion>
@@ -47,20 +47,20 @@ const LearnMore = () => {
         </AccordionSummary>
         <AccordionDetails>
           <Typography variant="body2" paragraph>
-            <strong>Technical Constraints:</strong> High computational resources, support for multiple frameworks (TensorFlow, PyTorch, ONNX), and real-time data processing capabilities.
+            <strong>Technical Constraints:</strong> High computational resources, support for diverse frameworks (TensorFlow, PyTorch, ONNX), and real-time processing capabilities are critical to our solution.
           </Typography>
           <Typography variant="body2">
-            <strong>Non-Technical Constraints:</strong> Compliance with international cybersecurity standards (IEEE, NIST, OWASP) and alignment with industry best practices.
+            <strong>Non-Technical Constraints:</strong> Compliance with industry standards (IEEE, NIST, ISO, OWASP) and regulatory requirements is essential for building trust and ensuring the solution is legally sound.
           </Typography>
         </AccordionDetails>
       </Accordion>
       <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff' }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
-          <Typography style={{ color: '#00bcd4', fontWeight: 'bold' }}>Additional Features & Deliverables</Typography>
+          <Typography style={{ color: '#00bcd4', fontWeight: 'bold' }}>Deliverables & Additional Features</Typography>
         </AccordionSummary>
         <AccordionDetails>
           <Typography variant="body2">
-            NeuroShield’s final deliverables include a full-fledged vulnerability detection tool, detailed documentation, source code repository, API integration, and a demo video, ensuring a robust and deployable solution.
+            NeuroShield delivers a fully functional vulnerability detection tool, comprehensive documentation, a GitHub repository containing the source code, API integrations for seamless deployment, and a demo video. These deliverables ensure that organizations can confidently integrate robust security measures into their AI workflows.
           </Typography>
         </AccordionDetails>
       </Accordion>
