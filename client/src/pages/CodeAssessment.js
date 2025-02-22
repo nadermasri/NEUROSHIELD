@@ -17,7 +17,7 @@ import ScienceIcon from '@mui/icons-material/Science';
 import WhatshotIcon from '@mui/icons-material/Whatshot';
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 
-// Container and styling remain similar to your original component
+// Styled Components
 const AssessmentContainer = styled(Container)`
   min-height: 100vh;
   padding: 5rem 10%;
@@ -73,7 +73,7 @@ const CodeAssessment = () => {
   const [csrfToken, setCsrfToken] = useState('');
   const navigate = useNavigate();
 
-  // List of libraries to display
+  // List of libraries to display (for manual selection)
   const librariesList = [
     'Airflow', 'Apache Spark', 'Docker', 'Flowise', 'Hadoop', 'KubeFlow',
     'LangChain', 'LlamaIndex', 'MLflow', 'NumPy', 'Ollama', 'ONNX', 'Pandas',
@@ -104,13 +104,14 @@ const CodeAssessment = () => {
     }));
   };
 
-  // Handle file upload for requirements.txt
+  // Handle file upload for requirements.txt (pip freeze file)
   const handleReqFileChange = (e) => {
     const file = e.target.files[0];
     setReqFile(file);
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target.result;
+      // Split file into lines and parse lines in the form: package==version
       const lines = text.split('\n');
       const frameworks = {};
       lines.forEach((line) => {
@@ -126,8 +127,10 @@ const CodeAssessment = () => {
     reader.readAsText(file);
   };
 
+  // On submit, use parsed frameworks if available; otherwise, use manual selection.
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     const frameworksToCheck =
       Object.keys(parsedFrameworks).length > 0
         ? parsedFrameworks
@@ -157,6 +160,8 @@ const CodeAssessment = () => {
           withCredentials: true
         }
       );
+      // Optionally, you can navigate to your dashboard or display the output.
+      // For example, pass the output state to the dashboard:
       navigate('/assessment-dashboard', { state: res.data });
     } catch (error) {
       console.error('Error checking vulnerabilities:', error);
@@ -212,7 +217,11 @@ const CodeAssessment = () => {
               Or Upload Requirements.txt (pip freeze output):
             </Typography>
             <UploadSection>
-              <Button variant="contained" component="label" sx={{ backgroundColor: '#00bcd4', color: '#ffffff', fontWeight: 'bold' }}>
+              <Button
+                variant="contained"
+                component="label"
+                sx={{ backgroundColor: '#00bcd4', color: '#ffffff', fontWeight: 'bold' }}
+              >
                 {reqFile ? 'Change File' : 'Upload File'}
                 <input type="file" hidden accept=".txt" onChange={handleReqFileChange} />
               </Button>
@@ -223,7 +232,11 @@ const CodeAssessment = () => {
               )}
             </UploadSection>
             <Box sx={{ textAlign: 'center', marginTop: '2rem' }}>
-              <Button type="submit" variant="contained" sx={{ backgroundColor: '#00bcd4', color: '#ffffff', fontWeight: 'bold' }}>
+              <Button
+                type="submit"
+                variant="contained"
+                sx={{ backgroundColor: '#00bcd4', color: '#ffffff', fontWeight: 'bold' }}
+              >
                 Check Vulnerabilities
               </Button>
             </Box>
