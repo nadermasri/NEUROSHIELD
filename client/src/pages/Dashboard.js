@@ -1,4 +1,4 @@
-// client/src/pages/TesterDashboard.js
+// client/src/pages/Dashboard.js
 import React from 'react';
 import { Container, Typography, Grid, Card, CardActionArea, CardContent, CardMedia } from '@mui/material';
 import { Link } from 'react-router-dom';
@@ -33,8 +33,8 @@ const NavCardContent = styled(CardContent)`
 const TesterDashboard = () => {
   const navOptions = [
     {
-      title: 'Code Assessment',
-      description: 'Assess your AI model code for vulnerabilities.',
+      title: 'Framework/Libraries Code Assessment',
+      description: 'Assess your AI model frameworks used for vulnerabilities.',
       image: '/assets/offerings/model.png', // ensure you have this image in public/assets/offerings/
       link: '/code-assessment'
     },

@@ -1,12 +1,11 @@
-// client/src/pages/CodeAssessment.js
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { Container, Typography, Button, TextField, Box } from '@mui/material';
+import { Container, Typography, Button, TextField, Box, Checkbox } from '@mui/material';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-// Import icons from Material UI
+// Import icons
 import CodeIcon from '@mui/icons-material/Code';
 import CloudIcon from '@mui/icons-material/Cloud';
 import BuildIcon from '@mui/icons-material/Build';
@@ -17,54 +16,46 @@ import ScienceIcon from '@mui/icons-material/Science';
 import WhatshotIcon from '@mui/icons-material/Whatshot';
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 
-// Styled Components
-const AssessmentContainer = styled(Container)`
+// Full-screen container that centers content
+const StyledContainer = styled(Container)`
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-height: 100vh;
-  padding: 5rem 10%;
-  background-color: #1a1a1a;
-  color: #ffffff;
-  @media (max-width: 960px) {
-    padding: 5rem 5%;
-  }
+  background: linear-gradient(135deg, #141e30, #243b55);
 `;
 
-const FormBox = styled.div`
-  background: rgba(30, 30, 30, 0.95);
-  padding: 3rem 4rem;
-  border-radius: 15px;
+// Glassmorphism card for the form
+const FormCard = styled(motion.div)`
+  background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+  border-radius: 16px;
+  padding: 2rem 3rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  max-width: 1200px;
+  width: 100%;
 `;
 
-const UploadSection = styled(Box)`
-  margin-top: 2rem;
-  text-align: center;
+// Container for the library list
+const LibraryList = styled(Box)`
+  margin-top: 1.5rem;
 `;
 
-// Mapping from library names (in lowercase) to icons.
-const libraryIcons = {
-  airflow: <CloudIcon fontSize="small" />,
-  'apache spark': <WhatshotIcon fontSize="small" />,
-  docker: <BuildIcon fontSize="small" />,
-  flowise: <DeveloperModeIcon fontSize="small" />,
-  hadoop: <CloudIcon fontSize="small" />,
-  kubeflow: <CloudIcon fontSize="small" />,
-  langchain: <LanguageIcon fontSize="small" />,
-  llamainDEX: <FunctionsIcon fontSize="small" />, // Example for LlamaIndex
-  mlflow: <ScienceIcon fontSize="small" />,
-  numpy: <FunctionsIcon fontSize="small" />,
-  ollama: <CodeIcon fontSize="small" />,
-  onnx: <CodeIcon fontSize="small" />,
-  pandas: <FunctionsIcon fontSize="small" />,
-  pytorch: <LocalFireDepartmentIcon fontSize="small" />,
-  redis: <CloudIcon fontSize="small" />,
-  sagemaker: <CloudIcon fontSize="small" />,
-  'sap hana': <BuildIcon fontSize="small" />,
-  'scikit-learn': <ScienceIcon fontSize="small" />,
-  'sql azure': <CloudIcon fontSize="small" />,
-  tensorflow: <DeveloperModeIcon fontSize="small" />,
-  'vector db': <CloudIcon fontSize="small" />
-};
+// Single library row styling
+const LibraryRow = styled(Box)`
+  display: flex;
+  align-items: center;
+  margin: 0.75rem 0;
+`;
+
+// Icon wrapper for fixed size and color
+const IconWrapper = styled(Box)`
+  margin-right: 1rem;
+  color: #00bcd4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
 
 const CodeAssessment = () => {
   const [selectedLibraries, setSelectedLibraries] = useState({});
@@ -73,7 +64,7 @@ const CodeAssessment = () => {
   const [csrfToken, setCsrfToken] = useState('');
   const navigate = useNavigate();
 
-  // List of libraries to display (for manual selection)
+  // List of libraries to display
   const librariesList = [
     'Airflow', 'Apache Spark', 'Docker', 'Flowise', 'Hadoop', 'KubeFlow',
     'LangChain', 'LlamaIndex', 'MLflow', 'NumPy', 'Ollama', 'ONNX', 'Pandas',
@@ -104,14 +95,13 @@ const CodeAssessment = () => {
     }));
   };
 
-  // Handle file upload for requirements.txt (pip freeze file)
+  // Handle file upload for requirements.txt (pip freeze output)
   const handleReqFileChange = (e) => {
     const file = e.target.files[0];
     setReqFile(file);
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target.result;
-      // Split file into lines and parse lines in the form: package==version
       const lines = text.split('\n');
       const frameworks = {};
       lines.forEach((line) => {
@@ -127,10 +117,8 @@ const CodeAssessment = () => {
     reader.readAsText(file);
   };
 
-  // On submit, use parsed frameworks if available; otherwise, use manual selection.
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const frameworksToCheck =
       Object.keys(parsedFrameworks).length > 0
         ? parsedFrameworks
@@ -160,41 +148,67 @@ const CodeAssessment = () => {
           withCredentials: true
         }
       );
-      // Optionally, you can navigate to your dashboard or display the output.
-      // For example, pass the output state to the dashboard:
-      navigate('/assessment-dashboard', { state: res.data });
+      console.log('Vulnerability check response:', res.data);
+      navigate('/assessment-dashboard');
     } catch (error) {
       console.error('Error checking vulnerabilities:', error);
       alert(error.response?.data?.message || 'Error checking vulnerabilities');
     }
   };
 
+  // Mapping from library names (in lowercase) to icons
+  const libraryIcons = {
+    airflow: <CloudIcon />,
+    'apache spark': <WhatshotIcon />,
+    docker: <BuildIcon />,
+    flowise: <DeveloperModeIcon />,
+    hadoop: <CloudIcon />,
+    kubeflow: <CloudIcon />,
+    langchain: <LanguageIcon />,
+    llamainDEX: <FunctionsIcon />,
+    mlflow: <ScienceIcon />,
+    numpy: <FunctionsIcon />,
+    ollama: <CodeIcon />,
+    onnx: <CodeIcon />,
+    pandas: <FunctionsIcon />,
+    pytorch: <LocalFireDepartmentIcon />,
+    redis: <CloudIcon />,
+    sagemaker: <CloudIcon />,
+    'sap hana': <BuildIcon />,
+    'scikit-learn': <ScienceIcon />,
+    'sql azure': <CloudIcon />,
+    tensorflow: <DeveloperModeIcon />,
+    'vector db': <CloudIcon />
+  };
+
   return (
-    <AssessmentContainer>
-      <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <FormBox>
-          <Typography variant="h4" align="center" gutterBottom style={{ color: '#00bcd4', fontWeight: 'bold' }}>
-            AI Security Code Assessment
+    <StyledContainer>
+      <FormCard
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <Typography variant="h4" align="center" sx={{ color: '#00bcd4', mb: 3, fontWeight: 'bold' }}>
+          AI Security Code Assessment
+        </Typography>
+        <form onSubmit={handleSubmit}>
+          <Typography variant="h6" sx={{ color: '#fff', mb: 1 }}>
+            Select Libraries Used:
           </Typography>
-          <form onSubmit={handleSubmit}>
-            <Typography variant="h6" gutterBottom>
-              Select Libraries Used:
-            </Typography>
+          <LibraryList>
             {librariesList.map((lib, index) => (
-              <Box key={index} sx={{ display: 'flex', alignItems: 'center', margin: '1rem 0' }}>
-                {/* Display the icon (fallback to CodeIcon if not mapped) */}
-                <Box sx={{ marginRight: '0.5rem', color: '#00bcd4' }}>
-                  {libraryIcons[lib.toLowerCase()] || <CodeIcon fontSize="small" />}
-                </Box>
-                <Typography variant="body1" sx={{ flexGrow: 1 }}>
+              <LibraryRow key={index}>
+                <IconWrapper>
+                  {libraryIcons[lib.toLowerCase()] || <CodeIcon />}
+                </IconWrapper>
+                <Typography variant="body1" sx={{ flexGrow: 1, color: '#fff' }}>
                   {lib}
                 </Typography>
-                <input
-                  type="checkbox"
+                <Checkbox
                   name={lib}
                   checked={selectedLibraries[lib]?.checked || false}
                   onChange={handleCheckboxChange}
-                  style={{ accentColor: '#00bcd4', marginRight: '0.5rem' }}
+                  sx={{ color: '#00bcd4' }}
                 />
                 {selectedLibraries[lib]?.checked && (
                   <TextField
@@ -205,45 +219,39 @@ const CodeAssessment = () => {
                     onChange={(e) => handleVersionChange(e, lib)}
                     required
                     sx={{
-                      backgroundColor: '#2a2a2a',
-                      '& .MuiOutlinedInput-root': { color: '#ffffff' },
-                      width: '120px'
+                      width: '120px',
+                      ml: 1,
+                      input: { color: '#fff' },
+                      '& .MuiInputLabel-root': { color: '#fff' },
+                      '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: '#00bcd4' } },
                     }}
                   />
                 )}
-              </Box>
+              </LibraryRow>
             ))}
-            <Typography variant="h6" gutterBottom sx={{ marginTop: '2rem' }}>
-              Or Upload Requirements.txt (pip freeze output):
-            </Typography>
-            <UploadSection>
-              <Button
-                variant="contained"
-                component="label"
-                sx={{ backgroundColor: '#00bcd4', color: '#ffffff', fontWeight: 'bold' }}
-              >
-                {reqFile ? 'Change File' : 'Upload File'}
-                <input type="file" hidden accept=".txt" onChange={handleReqFileChange} />
-              </Button>
-              {reqFile && (
-                <Typography variant="body1" sx={{ marginTop: '1rem' }}>
-                  Selected File: {reqFile.name}
-                </Typography>
-              )}
-            </UploadSection>
-            <Box sx={{ textAlign: 'center', marginTop: '2rem' }}>
-              <Button
-                type="submit"
-                variant="contained"
-                sx={{ backgroundColor: '#00bcd4', color: '#ffffff', fontWeight: 'bold' }}
-              >
-                Check Vulnerabilities
-              </Button>
-            </Box>
-          </form>
-        </FormBox>
-      </motion.div>
-    </AssessmentContainer>
+          </LibraryList>
+          <Typography variant="h6" sx={{ color: '#fff', mt: 3, mb: 1 }}>
+            Or Upload Requirements.txt (pip freeze output):
+          </Typography>
+          <Box sx={{ textAlign: 'center', mb: 2 }}>
+            <Button variant="contained" component="label" sx={{ bgcolor: '#00bcd4', color: '#fff' }}>
+              {reqFile ? 'Change File' : 'Upload File'}
+              <input type="file" hidden accept=".txt" onChange={handleReqFileChange} />
+            </Button>
+            {reqFile && (
+              <Typography variant="body1" sx={{ color: '#fff', mt: 1 }}>
+                Selected File: {reqFile.name}
+              </Typography>
+            )}
+          </Box>
+          <Box sx={{ textAlign: 'center', mt: 3 }}>
+            <Button type="submit" variant="contained" sx={{ bgcolor: '#00bcd4', color: '#fff', px: 4, py: 1.5, fontSize: '1rem' }}>
+              Check Vulnerabilities
+            </Button>
+          </Box>
+        </form>
+      </FormCard>
+    </StyledContainer>
   );
 };
 

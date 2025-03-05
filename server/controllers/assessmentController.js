@@ -8,9 +8,9 @@ exports.submitCodeAssessment = async (req, res) => {
     const { libraries } = req.body;
     const codeFile = req.file; // from multer
 
-    // Create an Assessment
+    // Create an Assessment document for code analysis
     let assessment = new Assessment({
-      user: req.user.id, // from auth
+      user: req.user.id, // coming from the auth middleware
       type: 'code',
       data: {
         libraries: libraries ? JSON.parse(libraries) : [],
@@ -25,16 +25,16 @@ exports.submitCodeAssessment = async (req, res) => {
       return res.status(400).json({ message: 'No code file uploaded.' });
     }
 
-    // Full path to the uploaded file
+    // Construct full file path for the uploaded code file
     const filePath = path.join(__dirname, '..', 'uploads', codeFile.filename);
 
-    // Run Snyk code test for static code analysis
+    // Run Snyk CLI static code analysis
     const snykCmd = `snyk code test --file="${filePath}" --json`;
 
     exec(snykCmd, async (err, stdout, stderr) => {
       if (err) {
         console.error('Snyk scan error:', err);
-        // Store the error in assessment doc
+        // Save the error in the assessment document
         await Assessment.findByIdAndUpdate(assessment._id, {
           $set: { 'data.snykError': stderr || err.message },
         });
@@ -44,7 +44,7 @@ exports.submitCodeAssessment = async (req, res) => {
         });
       }
 
-      // Parse the JSON from Snyk
+      // Try parsing the Snyk JSON output
       let snykResult;
       try {
         snykResult = JSON.parse(stdout);
@@ -58,10 +58,8 @@ exports.submitCodeAssessment = async (req, res) => {
         });
       }
 
-      // Extract issues
+      // Extract vulnerabilities (issues) from the result and update document
       const issues = snykResult.analysisResults?.issues || [];
-
-      // Update the doc with vulnerabilities
       const updatedAssessment = await Assessment.findByIdAndUpdate(
         assessment._id,
         { $set: { 'data.vulnerabilities': issues } },
@@ -80,7 +78,7 @@ exports.submitCodeAssessment = async (req, res) => {
   }
 };
 
-// DEPLOYED Model Assessment
+// Deployed Model Assessment
 exports.submitDeployedAssessment = async (req, res) => {
   try {
     const { modelUrl } = req.body;
@@ -92,12 +90,12 @@ exports.submitDeployedAssessment = async (req, res) => {
     await assessment.save();
     res.status(200).json({ message: 'Deployed Model Assessment submitted successfully.' });
   } catch (error) {
-    console.error(error);
+    console.error('Error in submitDeployedAssessment:', error);
     res.status(500).json({ message: 'Error submitting deployed assessment.' });
   }
 };
 
-// DATASET Assessment
+// Dataset Assessment
 exports.submitDatasetAssessment = async (req, res) => {
   try {
     const datasetFile = req.file;
@@ -109,7 +107,33 @@ exports.submitDatasetAssessment = async (req, res) => {
     await assessment.save();
     res.status(200).json({ message: 'Dataset Assessment submitted successfully.' });
   } catch (error) {
-    console.error(error);
+    console.error('Error in submitDatasetAssessment:', error);
     res.status(500).json({ message: 'Error submitting dataset assessment.' });
+  }
+};
+
+// Get all assessments for the logged in user
+exports.getUserAssessments = async (req, res) => {
+  try {
+    const assessments = await Assessment.find({ user: req.user.id }).sort({ createdAt: -1 });
+    res.status(200).json(assessments);
+  } catch (error) {
+    console.error('Error fetching user assessments:', error);
+    res.status(500).json({ message: 'Error fetching assessments.' });
+  }
+};
+
+// NEW: Delete an assessment by id (only if it belongs to the user)
+exports.deleteAssessment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const assessment = await Assessment.findOneAndDelete({ _id: id, user: req.user.id });
+    if (!assessment) {
+      return res.status(404).json({ message: 'Assessment not found or unauthorized' });
+    }
+    res.status(200).json({ message: 'Assessment deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting assessment:', error);
+    res.status(500).json({ message: 'Error deleting assessment' });
   }
 };
