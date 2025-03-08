@@ -66,10 +66,8 @@ const CodeAssessment = () => {
 
   // List of libraries to display
   const librariesList = [
-    'Airflow', 'Apache Spark', 'Docker', 'Flowise', 'Hadoop', 'KubeFlow',
-    'LangChain', 'LlamaIndex', 'MLflow', 'NumPy', 'Ollama', 'ONNX', 'Pandas',
-    'Pytorch', 'Redis', 'Sagemaker', 'SAP HANA', 'scikit-learn', 'SQL Azure',
-    'TensorFlow', 'Vector DB'
+    'Flowise', 'Horovod', 'LangChain', 'LlamaIndex', 'MLflow', 'NumPy', 'Ollama', 'ONNX', 'Pandas',
+    'Pytorch', 'scikit-learn', 'TensorFlow', 'Vector DB', 'Hugging Face Transformers'
   ];
 
   useEffect(() => {
