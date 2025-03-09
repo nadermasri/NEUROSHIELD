@@ -2,11 +2,22 @@ import subprocess
 import sys
 import json
 import os
+import shutil
+
+def find_bandit():
+    """Find the Bandit executable automatically."""
+    bandit_cmd = shutil.which("bandit")
+    if not bandit_cmd:
+        print(json.dumps({"error": "Bandit is not installed or not in PATH. Install it using 'pip install bandit'."}))
+        sys.exit(1)
+    return bandit_cmd
 
 
 def run_bandit(file_path):
     """Runs Bandit using its full path to avoid execution issues on Windows."""
-    bandit_path = r"C:\Users\Leenh\AppData\Local\Programs\Python\Python311\Scripts\bandit.exe"  # Change this to the correct path
+    # bandit_path = r"C:\Users\Leenh\AppData\Local\Programs\Python\Python311\Scripts\bandit.exe"  # Change this to the correct path
+    bandit_cmd = find_bandit()
+
 
     # Ensure the file exists before running Bandit
     if not os.path.exists(file_path):
@@ -15,7 +26,7 @@ def run_bandit(file_path):
 
     try:
         result = subprocess.run(
-            [bandit_path, "-r", file_path, "--format", "json"],
+            [bandit_cmd, "-r", file_path, "--format", "json"],
             capture_output=True, text=True, encoding="utf-8"
         )
 

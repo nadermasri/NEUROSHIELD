@@ -1,12 +1,26 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Button, Typography, Box, CircularProgress, Paper } from "@mui/material";
+import {
+  Button,
+  Typography,
+  Box,
+  CircularProgress,
+  Paper,
+} from "@mui/material";
 
 const UploadForm = () => {
   const [selectedFiles, setSelectedFiles] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [csrfToken, setCsrfToken] = useState("");
+
+  useEffect(() => {
+    axios
+      .get("http://localhost:5000/api/csrf-token", { withCredentials: true })
+      .then((res) => setCsrfToken(res.data.csrfToken))
+      .catch((err) => console.error("Error fetching CSRF token:", err));
+  }, []);
 
   // Handle file selection
   const handleFileChange = (event) => {
@@ -30,11 +44,18 @@ const UploadForm = () => {
     }
 
     try {
-      const response = await axios.post("http://localhost:5000/api/", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        "http://localhost:5000/api/scan",
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "x-csrf-token": csrfToken,
+          },
+          withCredentials: true,
+        }
+      );
 
       setResult(response.data);
       setLoading(false);
@@ -72,32 +93,50 @@ const UploadForm = () => {
             Scan Results:
           </Typography>
           {result.results.map((fileResult, index) => (
-            <Paper key={index} elevation={3} style={{ padding: "1rem", margin: "1rem 0" }}>
+            <Paper
+              key={index}
+              elevation={3}
+              style={{ padding: "1rem", margin: "1rem 0" }}
+            >
               <Typography variant="h6" color="secondary">
                 📂 File: {fileResult.file}
               </Typography>
               {fileResult.issues ? (
                 fileResult.issues.map((issue, idx) => (
-                  <Box key={idx} textAlign="left" p={1} mt={2} border={1} borderRadius={2}>
+                  <Box
+                    key={idx}
+                    textAlign="left"
+                    p={1}
+                    mt={2}
+                    border={1}
+                    borderRadius={2}
+                  >
                     <Typography>
                       🔴 <strong>Issue:</strong> {issue.issue_text}
                     </Typography>
                     <Typography>
-                      ⚠️ <strong>Severity:</strong> {issue.issue_severity} | 
-                      🔍 <strong>Confidence:</strong> {issue.issue_confidence}
+                      ⚠️ <strong>Severity:</strong> {issue.issue_severity} | 🔍{" "}
+                      <strong>Confidence:</strong> {issue.issue_confidence}
                     </Typography>
                     <Typography>
                       📌 <strong>Line:</strong> {issue.line_number}
                     </Typography>
                     <Typography>
-                      🔗 <a href={issue.more_info} target="_blank" rel="noopener noreferrer">
+                      🔗{" "}
+                      <a
+                        href={issue.more_info}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
                         More Info
                       </a>
                     </Typography>
                   </Box>
                 ))
               ) : (
-                <Typography color="success">✅ No security issues found!</Typography>
+                <Typography color="success">
+                  ✅ No security issues found!
+                </Typography>
               )}
             </Paper>
           ))}
