@@ -1,0 +1,9 @@
+PASSWORD = "supersecret123"  # 🚨 Hardcoded password (Bandit will catch this)
+
+def login(user, password):
+    if password == PASSWORD:
+        print("Login successful!")
+    else:
+        print("Login failed.")
+
+login("admin", "supersecret123")

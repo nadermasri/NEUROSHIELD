@@ -17,6 +17,7 @@ const adminRoutes = require('./routes/admin');
 const assessmentRoutes = require('./routes/assessment');
 const contactRoutes = require('./routes/contact');
 const vulnerabilityRoutes = require('./routes/vulnerability'); // Added vulnerability route
+const scanRoute = require("./routes/scanRoute");
 
 const app = express();
 
@@ -45,6 +46,7 @@ const globalLimiter = rateLimit({
 app.use(globalLimiter);
 
 // Updated CSRF protection
+
 const csrfProtection = csurf({
   cookie: {
     httpOnly: true,
@@ -52,9 +54,11 @@ const csrfProtection = csurf({
     sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
   }
 });
-app.use(csrfProtection);
+//uncomment this
+// app.use(csrfProtection);
 
 // CSRF token endpoint
+
 app.get('/api/csrf-token', (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
 });
@@ -71,6 +75,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/assessments', assessmentRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/vulnerabilities', vulnerabilityRoutes); // Integrated vulnerability API
+app.use("/api/scan", scanRoute);
+
 
 // Serve static files from uploads folder
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
