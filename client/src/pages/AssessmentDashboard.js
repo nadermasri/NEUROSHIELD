@@ -577,6 +577,28 @@ const EnhancedTable = ({
                           <Typography variant="body2">
                             <strong>Severity:</strong> {vuln.severity_score}
                           </Typography>
+                          {vuln.fixCommand && vuln.fixCommand !== "No fix command available" && (
+                            <Box sx={{ mt: 1 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                Fix Command:
+                              </Typography>
+                              <Typography variant="body2" sx={{ fontStyle: 'italic', mb: 1 }}>
+                                {vuln.fixCommand}
+                              </Typography>
+                              <Button 
+                                variant="contained" 
+                                size="small" 
+                                onClick={() => {
+                                  navigator.clipboard.writeText(vuln.fixCommand)
+                                    .then(() => alert("Fix command copied to clipboard!"))
+                                    .catch(err => console.error("Clipboard error:", err));
+                                }}
+                              >
+                                Copy
+                              </Button>
+                            </Box>
+                          )}
+
                         </StyledPaper>
                       ))}
                     </Box>

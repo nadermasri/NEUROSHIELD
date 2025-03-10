@@ -1,3 +1,5 @@
 node_modules/
 cves.csv
 uploads/*
+
+venv/
