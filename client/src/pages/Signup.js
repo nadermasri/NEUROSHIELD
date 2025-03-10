@@ -23,6 +23,7 @@ const Signup = () => {
     axios.get('http://localhost:5000/api/csrf-token', { withCredentials: true })
       .then(response => {
         setCsrfToken(response.data.csrfToken);
+        console.log("CSRF token fetched:", response.data.csrfToken);
       })
       .catch(error => {
         console.error('Error fetching CSRF token:', error);
@@ -35,16 +36,21 @@ const Signup = () => {
   
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("Submitting signup form with:", form);
     try {
       await axios.post(
         'http://localhost:5000/api/auth/signup',
         form,
-        { headers: { 'csrf-token': csrfToken } }
+        { 
+          headers: { 'csrf-token': csrfToken },
+          withCredentials: true,
+        }
       );
       alert('Signup successful! Please login.');
       navigate('/tester-login');
     } catch (error) {
-      alert('Signup failed: ' + (error.response.data.message || 'Unknown error'));
+      console.error('Signup error:', error.response?.data);
+      alert('Signup failed: ' + (error.response?.data?.message || 'Unknown error'));
     }
   };
   
@@ -54,10 +60,50 @@ const Signup = () => {
         Tester Signup
       </Typography>
       <form onSubmit={handleSubmit}>
-        <TextField label="Name" name="name" fullWidth value={form.name} onChange={handleChange} margin="normal" variant="outlined" required InputLabelProps={{ style: { color: '#ffffff' } }} InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} />
-        <TextField label="Email" name="email" type="email" fullWidth value={form.email} onChange={handleChange} margin="normal" variant="outlined" required InputLabelProps={{ style: { color: '#ffffff' } }} InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} />
-        <TextField label="Password" name="password" type="password" fullWidth value={form.password} onChange={handleChange} margin="normal" variant="outlined" required InputLabelProps={{ style: { color: '#ffffff' } }} InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} />
-        <Button type="submit" variant="contained" fullWidth style={{ backgroundColor: '#00bcd4', color: '#ffffff', marginTop: '1rem', fontWeight: 'bold' }}>
+        <TextField 
+          label="Name" 
+          name="name" 
+          fullWidth 
+          value={form.name} 
+          onChange={handleChange} 
+          margin="normal" 
+          variant="outlined" 
+          required 
+          InputLabelProps={{ style: { color: '#ffffff' } }} 
+          InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} 
+        />
+        <TextField 
+          label="Email" 
+          name="email" 
+          type="email" 
+          fullWidth 
+          value={form.email} 
+          onChange={handleChange} 
+          margin="normal" 
+          variant="outlined" 
+          required 
+          InputLabelProps={{ style: { color: '#ffffff' } }} 
+          InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} 
+        />
+        <TextField 
+          label="Password" 
+          name="password" 
+          type="password" 
+          fullWidth 
+          value={form.password} 
+          onChange={handleChange} 
+          margin="normal" 
+          variant="outlined" 
+          required 
+          InputLabelProps={{ style: { color: '#ffffff' } }} 
+          InputProps={{ style: { color: '#ffffff', backgroundColor: '#2a2a2a' } }} 
+        />
+        <Button 
+          type="submit" 
+          variant="contained" 
+          fullWidth 
+          style={{ backgroundColor: '#00bcd4', color: '#ffffff', marginTop: '1rem', fontWeight: 'bold' }}
+        >
           Sign Up
         </Button>
       </form>

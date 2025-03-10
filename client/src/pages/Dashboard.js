@@ -1,9 +1,10 @@
-// client/src/pages/Dashboard.js
+// client/src/pages/TesterDashboard.js
 import React from 'react';
-import { Container, Typography, Grid, Card, CardActionArea, CardContent, CardMedia } from '@mui/material';
+import { Container, Typography, Grid, Card, CardActionArea, CardContent, CardMedia, Box } from '@mui/material';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
+import UploadForm from "../components/UploadForm"; // Import the Upload Form
 
 const DashboardContainer = styled(Container)`
   padding: 4rem;
@@ -30,12 +31,20 @@ const NavCardContent = styled(CardContent)`
   text-align: center;
 `;
 
+const UploadCard = styled(Card)`
+  background-color: #1e1e1e;
+  color: #ffffff;
+  padding: 2rem;
+  margin-top: 2rem;
+  text-align: center;
+`;
+
 const TesterDashboard = () => {
   const navOptions = [
     {
       title: 'Framework/Libraries Code Assessment',
       description: 'Assess your AI model frameworks used for vulnerabilities.',
-      image: '/assets/offerings/model.png', // ensure you have this image in public/assets/offerings/
+      image: '/assets/offerings/model.png',
       link: '/code-assessment'
     },
     {
@@ -86,6 +95,16 @@ const TesterDashboard = () => {
           </Grid>
         ))}
       </Grid>
+
+      {/* 🚀 Add Upload Section Below the Dashboard Grid */}
+      <Box mt={4}>
+        <UploadCard>
+          <Typography variant="h5" style={{ color: '#00bcd4', fontWeight: 'bold', marginBottom: '1rem' }}>
+            Upload Your Python Files for Security Assessment
+          </Typography>
+          <UploadForm />
+        </UploadCard>
+      </Box>
     </DashboardContainer>
   );
 };
