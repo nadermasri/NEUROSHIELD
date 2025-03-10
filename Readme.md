@@ -18,7 +18,15 @@ Before you begin, ensure you have the following installed:
    git clone https://github.com/nadermasri/NEUROSHIELD.git
    ```
 
-2. **Setup Backend**
+2. **Create a virtual environment and install Bandit**
+
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install bandit
+   ```
+
+3. **Setup Backend**
 
    ```bash
    cd server
@@ -37,14 +45,14 @@ Before you begin, ensure you have the following installed:
    PORT=5000
    ```
 
-3. **Setup Frontend**
+4. **Setup Frontend**
 
    ```bash
    cd client
    npm install
    ```
 
-4. **Setup MongoDB**
+5. **Setup MongoDB**
    - Download MongoDB from the community server
    - Download MongoDB shell
    - Open the mongosh.exe
