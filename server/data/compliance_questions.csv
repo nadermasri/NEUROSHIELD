@@ -1,0 +1,31 @@
+framework,id,question,weight,expectedAnswer,recommendation
+NIST AI RMF,q1,Does your organization have a documented AI risk management framework?,10,yes,Establish and document an AI risk management framework.
+NIST AI RMF,q2,Are roles and responsibilities for AI oversight clearly defined?,10,yes,Define and communicate clear roles for AI oversight.
+NIST AI RMF,q3,Does your organization conduct regular risk assessments on AI systems?,10,yes,Implement periodic risk assessments for all AI systems.
+NIST AI RMF,q4,Are governance policies in place to oversee AI development and deployment?,10,yes,Develop and enforce governance policies specific to AI.
+NIST AI RMF,q5,Do you have an incident response and recovery plan for AI system failures?,10,yes,Create and test an incident response plan for AI-related incidents.
+NIST AI RMF,q6,Are data privacy and protection measures implemented for both training and deployment of AI systems?,10,yes,Implement robust data privacy and protection measures.
+NIST AI RMF,q7,Are third-party AI components and data sources regularly evaluated for security and compliance?,10,yes,Conduct due diligence and periodic reviews for third-party risks.
+NIST AI RMF,q8,Is there continuous monitoring of AI system performance and documented incidents?,10,yes,Set up continuous monitoring and incident documentation.
+NIST AI RMF,q9,Are stakeholder feedback and external reviews integrated into the AI risk management process?,10,yes,Implement structured feedback channels and regular reviews.
+NIST AI RMF,q10,Are AI policies and procedures reviewed and updated on a regular basis?,10,yes,Schedule regular reviews and updates for all AI-related policies.
+NIST AI RMF,q11,Are bias and fairness metrics defined and monitored for your AI systems?,10,yes,Define, monitor, and adjust bias and fairness metrics.
+NIST AI RMF,q12,Is there a process to verify the authenticity and provenance of AI-generated content?,10,yes,Implement content provenance techniques such as watermarking.
+NIST AI RMF,q13,Do you conduct regular audits or red-teaming exercises to identify vulnerabilities in your AI systems?,10,yes,Establish regular audits and red-teaming to uncover vulnerabilities.
+NIST AI RMF,q14,Are training and evaluation metrics aligned with your organization’s risk tolerance levels?,10,yes,Align AI performance metrics with organizational risk tolerances.
+NIST AI RMF,q15,Is compliance with legal and regulatory requirements for AI continuously verified?,10,yes,Implement ongoing compliance checks and monitoring.
+NIST AI RMF,q16,Does your organization address unique risks of generative AI (e.g., confabulation, misleading outputs)?,10,yes,Establish specific controls to manage generative AI risks.
+NIST AI RMF,q17,Is there a documented process for managing risks associated with AI model outputs (such as bias or misinformation)?,10,yes,Document and implement risk management practices for AI outputs.
+NIST AI RMF,q18,Are transparency and explainability measures integrated into your AI systems?,10,yes,Adopt techniques to enhance transparency and explainability.
+NIST AI RMF,q19,Do you have established processes for the safe decommissioning or phasing out of AI systems?,10,yes,Develop and follow safe decommissioning protocols.
+NIST AI RMF,q20,Are all AI systems and components inventoried and regularly reviewed for compliance?,10,yes,Maintain a comprehensive inventory and review schedule for AI systems.
+NIST AI RMF,q21,Do you have contingency plans to manage failures or incidents involving third-party AI resources?,10,yes,Develop contingency and fallback plans for third-party risks.
+NIST AI RMF,q22,Are employees provided with ongoing training on AI risks and safe practices?,10,yes,Implement regular training sessions on AI risk and compliance.
+NIST AI RMF,q23,Are risk controls and mitigation strategies for AI continuously monitored for effectiveness?,10,yes,Set up a process to monitor and adjust risk controls regularly.
+NIST AI RMF,q24,Do you integrate privacy-enhancing technologies (such as differential privacy) into your AI systems?,10,yes,Adopt privacy-enhancing techniques where applicable.
+NIST AI RMF,q25,Are the environmental impacts of AI training and deployment regularly evaluated?,10,yes,Assess and mitigate the environmental footprint of AI operations.
+NIST AI RMF,q26,Are procedures in place to prevent unauthorized access or leakage of sensitive AI data?,10,yes,Implement strict access controls and data leakage prevention measures.
+NIST AI RMF,q27,Is there a process to address intellectual property concerns related to AI-generated content?,10,yes,Establish protocols for managing intellectual property issues.
+NIST AI RMF,q28,Are measures in place to mitigate the risk of harmful or abusive AI-generated content?,10,yes,Implement content moderation and filtering mechanisms.
+NIST AI RMF,q29,Do you have a documented process for collecting and integrating external stakeholder feedback on AI performance?,10,yes,Create structured processes for stakeholder feedback and integration.
+NIST AI RMF,q30,Are structured public feedback exercises conducted to evaluate the impacts and outputs of your AI systems?,10,yes,Regularly perform public feedback exercises to assess AI impact.

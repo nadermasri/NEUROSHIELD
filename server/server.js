@@ -82,6 +82,7 @@ app.use("/api/assessments", assessmentRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/vulnerabilities", vulnerabilityRoutes); // Integrated vulnerability API
 app.use("/api/scan", scanRoute);
+app.use("/api/compliance", require("./routes/compliance"));
 
 // Serve static files from uploads folder
 app.use(

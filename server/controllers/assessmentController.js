@@ -1,3 +1,4 @@
+//server/controllers/assessmentController.js
 const Assessment = require('../models/Assessment');
 const { exec } = require('child_process');
 const path = require('path');
@@ -16,6 +17,7 @@ exports.submitCodeAssessment = async (req, res) => {
         libraries: libraries ? JSON.parse(libraries) : [],
         codeFile: codeFile ? codeFile.filename : null,
         vulnerabilities: [],
+        summary: {}
       },
     });
 
@@ -58,11 +60,30 @@ exports.submitCodeAssessment = async (req, res) => {
         });
       }
 
-      // Extract vulnerabilities (issues) from the result and update document
+      // Extract vulnerabilities (issues) from the result
       const issues = snykResult.analysisResults?.issues || [];
+
+      // Compute a summary for the code scan:
+      // Map severity to numeric values for average calculation (LOW=1, MEDIUM=2, HIGH=3)
+      const severityMapping = { LOW: 1, MEDIUM: 2, HIGH: 3 };
+      let totalSeverity = 0;
+      issues.forEach(issue => {
+        const sev = issue.issue_severity;
+        totalSeverity += severityMapping[sev] || 0;
+      });
+      const averageSeverity = issues.length ? (totalSeverity / issues.length).toFixed(2) : 0;
+      const riskLevel = averageSeverity < 2 ? "Low" : averageSeverity < 2.5 ? "Moderate" : "High";
+
+      const summary = {
+        vulnerabilitiesFound: issues.length,
+        averageSeverity,
+        riskLevel,
+      };
+
+      // Update the assessment document with vulnerabilities and the summary
       const updatedAssessment = await Assessment.findByIdAndUpdate(
         assessment._id,
-        { $set: { 'data.vulnerabilities': issues } },
+        { $set: { 'data.vulnerabilities': issues, 'data.summary': summary } },
         { new: true }
       );
 
@@ -95,22 +116,7 @@ exports.submitDeployedAssessment = async (req, res) => {
   }
 };
 
-// Dataset Assessment
-exports.submitDatasetAssessment = async (req, res) => {
-  try {
-    const datasetFile = req.file;
-    const assessment = new Assessment({
-      user: req.user.id,
-      type: 'dataset',
-      data: { datasetFile: datasetFile ? datasetFile.filename : null },
-    });
-    await assessment.save();
-    res.status(200).json({ message: 'Dataset Assessment submitted successfully.' });
-  } catch (error) {
-    console.error('Error in submitDatasetAssessment:', error);
-    res.status(500).json({ message: 'Error submitting dataset assessment.' });
-  }
-};
+// Dataset Assessment has been removed as it is no longer supported.
 
 // Get all assessments for the logged in user
 exports.getUserAssessments = async (req, res) => {
@@ -123,7 +129,7 @@ exports.getUserAssessments = async (req, res) => {
   }
 };
 
-// NEW: Delete an assessment by id (only if it belongs to the user)
+// Delete an assessment by id (only if it belongs to the user)
 exports.deleteAssessment = async (req, res) => {
   try {
     const { id } = req.params;

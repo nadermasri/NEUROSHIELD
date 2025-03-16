@@ -1,3 +1,4 @@
+//server/models/Assessment.js
 const mongoose = require('mongoose');
 
 const AssessmentSchema = new mongoose.Schema({

@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { Button, Typography, Box, CircularProgress, Paper, Container } from "@mui/material";
 import styled from "styled-components";
-import { motion } from "framer-motion";
 import UploadIcon from "@mui/icons-material/Upload";
+import axios from "axios";
 
 const AssessmentContainer = styled(Container)`
   min-height: 100vh;
@@ -81,103 +80,116 @@ const UploadForm = () => {
 
   return (
     <AssessmentContainer>
-      <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <FormBox>
-          {/* 🚀 Removed Duplicate Title Here */}
-          <Typography variant="h6" align="center" style={{ marginBottom: "1rem", color: "#cccccc" }}>
-            Upload your Python code to analyze security vulnerabilities.
-          </Typography>
+      <FormBox>
+        <Typography variant="h6" align="center" style={{ marginBottom: "1rem", color: "#cccccc" }}>
+          Upload your Python code to analyze security vulnerabilities.
+        </Typography>
 
-          <form onSubmit={handleUpload}>
-            <UploadSection>
-              <Button
-                variant="contained"
-                component="label"
-                startIcon={<UploadIcon />}
-                sx={{
-                  backgroundColor: "#00bcd4",
-                  color: "#ffffff",
-                  fontWeight: "bold",
-                  padding: "0.8rem 2rem",
-                  border: "2px solid #00bcd4",
-                  "&:hover": { backgroundColor: "#00838f", border: "2px solid #00838f" },
-                }}
-              >
-                {selectedFiles ? "Change Files" : "Upload Files"}
-                <input type="file" multiple hidden onChange={handleFileChange} accept=".py, .zip" />
-              </Button>
-              {selectedFiles && (
-                <Typography variant="body1" sx={{ marginTop: "1rem" }}>
-                  Selected Files: {Array.from(selectedFiles).map((file) => file.name).join(", ")}
-                </Typography>
-              )}
-            </UploadSection>
-
-            <Box sx={{ textAlign: "center", marginTop: "2rem" }}>
-              <Button
-                type="submit"
-                variant="contained"
-                sx={{
-                  backgroundColor: "#00bcd4",
-                  color: "#ffffff",
-                  fontWeight: "bold",
-                  padding: "0.8rem 2rem",
-                  "&:hover": { backgroundColor: "#00838f" },
-                }}
-                disabled={loading}
-              >
-                {loading ? <CircularProgress size={24} /> : "Upload & Scan"}
-              </Button>
-            </Box>
-          </form>
-
-          {error && (
-            <Typography color="error" sx={{ marginTop: "1rem" }}>
-              {error}
-            </Typography>
-          )}
-
-          {result && (
-            <Box mt={3}>
-              <Typography variant="h5" style={{ color: "#00bcd4", fontWeight: "bold", marginBottom: "1rem" }}>
-                Scan Results:
+        <form onSubmit={handleUpload}>
+          <UploadSection>
+            <Button
+              variant="contained"
+              component="label"
+              startIcon={<UploadIcon />}
+              sx={{
+                backgroundColor: "#00bcd4",
+                color: "#ffffff",
+                fontWeight: "bold",
+                padding: "0.8rem 2rem",
+              }}
+            >
+              {selectedFiles ? "Change Files" : "Upload Files"}
+              <input type="file" multiple hidden onChange={handleFileChange} accept=".py, .zip" />
+            </Button>
+            {selectedFiles && (
+              <Typography variant="body1" sx={{ marginTop: "1rem" }}>
+                Selected Files: {Array.from(selectedFiles).map((file) => file.name).join(", ")}
               </Typography>
-              {result.results.map((fileResult, index) => (
-                <Paper key={index} elevation={3} style={{ padding: "1rem", margin: "1rem 0", backgroundColor: "#2a2a2a" }}>
-                  <Typography variant="h6" style={{ color: "#00bcd4", fontWeight: "bold" }}>
-                    📂 File: {fileResult.file}
+            )}
+          </UploadSection>
+
+          <Box sx={{ textAlign: "center", marginTop: "2rem" }}>
+            <Button
+              type="submit"
+              variant="contained"
+              sx={{
+                backgroundColor: "#00bcd4",
+                color: "#ffffff",
+                fontWeight: "bold",
+                padding: "0.8rem 2rem",
+              }}
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={24} /> : "Upload & Scan"}
+            </Button>
+          </Box>
+        </form>
+
+        {error && (
+          <Typography color="error" sx={{ marginTop: "1rem" }}>
+            {error}
+          </Typography>
+        )}
+
+        {result && (
+          <Box mt={3}>
+            <Typography variant="h5" style={{ color: "#00bcd4", fontWeight: "bold", marginBottom: "1rem" }}>
+              Scan Results:
+            </Typography>
+            {result.results.map((fileResult, index) => (
+              <Paper
+                key={index}
+                elevation={3}
+                style={{ padding: "1rem", margin: "1rem 0", backgroundColor: "#2a2a2a" }}
+              >
+                <Typography variant="h6" style={{ color: "#00bcd4", fontWeight: "bold" }}>
+                  📂 File: {fileResult.file}
+                </Typography>
+                {Array.isArray(fileResult.issues) ? (
+                  fileResult.issues.map((issue, idx) => (
+                    <Box
+                      key={idx}
+                      textAlign="left"
+                      p={1}
+                      mt={2}
+                      style={{
+                        backgroundColor: "#333",
+                        padding: "1rem",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      <Typography style={{ color: "#ffffff" }}>
+                        🔴 <strong>Issue:</strong> {issue.issue_text}
+                      </Typography>
+                      <Typography style={{ color: "#ffffff" }}>
+                        ⚠️ <strong>Severity:</strong> {issue.issue_severity} | 🔍 <strong>Confidence:</strong> {issue.issue_confidence}
+                      </Typography>
+                      <Typography style={{ color: "#ffffff" }}>
+                        📌 <strong>Line:</strong> {issue.line_number}
+                      </Typography>
+                      <Typography>
+                        🔗{" "}
+                        <a
+                          href={issue.more_info}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: "#00bcd4" }}
+                        >
+                          More Info
+                        </a>
+                      </Typography>
+                    </Box>
+                  ))
+                ) : (
+                  <Typography style={{ color: "#00bcd4", fontWeight: "bold" }}>
+                    {fileResult.issues}
                   </Typography>
-                  {fileResult.issues ? (
-                    fileResult.issues.map((issue, idx) => (
-                      <Box key={idx} textAlign="left" p={1} mt={2} border={1} borderRadius={2} style={{ backgroundColor: "#333", padding: "1rem", borderRadius: "8px" }}>
-                        <Typography style={{ color: "#ffffff" }}>
-                          🔴 <strong>Issue:</strong> {issue.issue_text}
-                        </Typography>
-                        <Typography style={{ color: "#ffffff" }}>
-                          ⚠️ <strong>Severity:</strong> {issue.issue_severity} | 🔍 <strong>Confidence:</strong> {issue.issue_confidence}
-                        </Typography>
-                        <Typography style={{ color: "#ffffff" }}>
-                          📌 <strong>Line:</strong> {issue.line_number}
-                        </Typography>
-                        <Typography>
-                          🔗{" "}
-                          <a href={issue.more_info} target="_blank" rel="noopener noreferrer" style={{ color: "#00bcd4" }}>
-                            More Info
-                          </a>
-                        </Typography>
-                      </Box>
-                    ))
-                  ) : (
-                    <Typography style={{ color: "#00bcd4", fontWeight: "bold" }}>
-                      ✅ No security issues found!
-                    </Typography>
-                  )}
-                </Paper>
-              ))}
-            </Box>
-          )}
-        </FormBox>
-      </motion.div>
+                )}
+              </Paper>
+            ))}
+          </Box>
+        )}
+      </FormBox>
     </AssessmentContainer>
   );
 };

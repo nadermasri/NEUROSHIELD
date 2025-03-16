@@ -1,3 +1,4 @@
+//server/middleware/authMiddleware.js
 const jwt = require('jsonwebtoken');
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET; // Make sure you set this in .env
 

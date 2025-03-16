@@ -111,13 +111,10 @@ const AssessmentDashboard = () => {
   const fetchAssessments = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(
-        "http://localhost:5000/api/assessments/my-assessments",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true,
-        }
-      );
+      const res = await axios.get("http://localhost:5000/api/assessments/my-assessments", {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true,
+      });
       setAssessments(res.data);
     } catch (error) {
       console.error("Error fetching assessments:", error);
@@ -125,10 +122,12 @@ const AssessmentDashboard = () => {
     }
   };
 
-  const toggleExpand = (id) => {
-    setExpandedId(expandedId === id ? null : id);
+  // Update the current tab index
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
   };
 
+  // Delete an assessment
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this assessment?")) {
       try {
@@ -148,8 +147,8 @@ const AssessmentDashboard = () => {
     }
   };
 
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
+  const toggleExpand = (id) => {
+    setExpandedId(expandedId === id ? null : id);
   };
 
   const handleViewDetails = (assessment) => {
@@ -162,20 +161,39 @@ const AssessmentDashboard = () => {
     setSelectedAssessment(null);
   };
 
-  // Generate PDF with advanced formatting
+  // Generate PDF with enhanced formatting
   const handleDownloadPDF = (assessment) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 20;
     let y = margin;
+    const lineHeight = 7;
 
-    // Title
+    // Helper function to wrap and print text with page break check
+    const printText = (text, x, initialY) => {
+      const lines = doc.splitTextToSize(String(text), pageWidth - margin * 2);
+      lines.forEach((line) => {
+        if (initialY + lineHeight > doc.internal.pageSize.getHeight() - margin) {
+          doc.addPage();
+          initialY = margin;
+        }
+        doc.text(line, x, initialY);
+        initialY += lineHeight;
+      });
+      return initialY;
+    };
+
+    // Sanitize text by converting to string and removing non-printable characters
+    const sanitizeText = (text) => {
+      if (text === null || text === undefined) return "";
+      return String(text).replace(/[^\x20-\x7E]+/g, "");
+    };
+
+    // Header
     doc.setFontSize(22);
     doc.setFont("helvetica", "bold");
-    doc.text("Assessment Report", pageWidth / 2, y, { align: "center" });
-    y += 12;
-
-    // Separator
+    doc.text("Assessment Report", pageWidth / 2, margin + 10, { align: "center" });
+    y = margin + 22;
     doc.setLineWidth(0.5);
     doc.line(margin, y, pageWidth - margin, y);
     y += 10;
@@ -183,35 +201,45 @@ const AssessmentDashboard = () => {
     // Basic details
     doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
-    const details = [
-      `Assessment ID: ${assessment._id}`,
-      `Type: ${assessment.type}`,
+    const basicDetails = [
+      `Assessment ID: ${sanitizeText(assessment._id)}`,
+      `Type: ${sanitizeText(assessment.type)}`,
       `Date: ${new Date(assessment.createdAt).toLocaleString()}`,
-      `User: ${assessment.user || "N/A"}`,
+      `User: ${sanitizeText(assessment.user || "N/A")}`,
     ];
-    details.forEach((detail) => {
-      doc.text(detail, margin, y);
-      y += 8;
+    basicDetails.forEach((detail) => {
+      y = printText(detail, margin, y);
     });
-
     y += 5;
     doc.line(margin, y, pageWidth - margin, y);
     y += 10;
 
-    // Vulnerability details if applicable
-    if (assessment.type === "vulnerability" || assessment.type === "code") {
-      const vulnerabilities =
-        assessment.type === "vulnerability"
-          ? assessment.data.details || []
-          : assessment.data.vulnerabilities || [];
+    // Include sections based on assessment type
+    if (assessment.type.toLowerCase() === "compliance") {
       doc.setFont("helvetica", "bold");
-      doc.text("Vulnerability Details:", margin, y);
-      y += 8;
+      y = printText("Questionnaire Responses:", margin, y);
       doc.setFont("helvetica", "normal");
-
+      if (assessment.questions && assessment.responses) {
+        assessment.questions.forEach((q) => {
+          const userAnswer = (assessment.responses[String(q.id)] || "").trim();
+          y = printText(`Q: ${sanitizeText(q.question)}`, margin, y);
+          y = printText(`Your Answer: ${sanitizeText(userAnswer)}`, margin + 5, y);
+          y = printText(`Expected Answer: ${sanitizeText(q.expectedAnswer)}`, margin + 5, y);
+          y += 5;
+        });
+      } else {
+        y = printText("Questionnaire details not available.", margin, y);
+      }
+      y += 5;
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 10;
+    } else if (assessment.type.toLowerCase() === "vulnerability") {
+      const vulnerabilities = assessment.data.details || [];
+      doc.setFont("helvetica", "bold");
+      y = printText("Vulnerability & Mitigation Details:", margin, y);
+      doc.setFont("helvetica", "normal");
       if (vulnerabilities.length === 0) {
-        doc.text("No vulnerabilities found.", margin, y);
-        y += 8;
+        y = printText("No vulnerabilities found.", margin, y);
       } else {
         vulnerabilities.forEach((vuln, index) => {
           if (y > doc.internal.pageSize.getHeight() - margin - 20) {
@@ -219,60 +247,88 @@ const AssessmentDashboard = () => {
             y = margin;
           }
           doc.setFont("helvetica", "bold");
-          doc.text(`Vulnerability ${index + 1}:`, margin, y);
-          y += 7;
+          y = printText(`Vulnerability ${index + 1}:`, margin, y);
           doc.setFont("helvetica", "normal");
-          doc.text(`CVE: ${vuln.CVE}`, margin + 5, y);
-          y += 7;
-          doc.text(`Attack Type: ${vuln.attack_type}`, margin + 5, y);
-          y += 7;
-          doc.text(`Severity: ${vuln.severity_score}`, margin + 5, y);
-          y += 7;
-          const splitMitigation = doc.splitTextToSize(
-            `Mitigation: ${vuln.mitigation || "N/A"}`,
-            pageWidth - margin - 10
-          );
-          doc.text(splitMitigation, margin + 5, y);
-          y += splitMitigation.length * 7 + 5;
+          y = printText(`CVE: ${sanitizeText(vuln.CVE)}`, margin + 5, y);
+          y = printText(`Attack Type: ${sanitizeText(vuln.attack_type)}`, margin + 5, y);
+          y = printText(`Severity: ${sanitizeText(vuln.severity_score)}`, margin + 5, y);
+          y = printText(`Mitigation: ${sanitizeText(vuln.mitigation) || "N/A"}`, margin + 5, y);
+          y += 5;
+        });
+      }
+    } else if (assessment.type.toLowerCase() === "code") {
+      const fileResults = assessment.data.vulnerabilities || [];
+      doc.setFont("helvetica", "bold");
+      y = printText("Code Assessment Output:", margin, y);
+      doc.setFont("helvetica", "normal");
+      if (fileResults.length === 0) {
+        y = printText("No vulnerabilities found.", margin, y);
+      } else {
+        fileResults.forEach((result) => {
+          if (y > doc.internal.pageSize.getHeight() - margin - 20) {
+            doc.addPage();
+            y = margin;
+          }
+          doc.setFont("helvetica", "bold");
+          y = printText(`File: ${sanitizeText(result.file)}`, margin, y);
+          doc.setFont("helvetica", "normal");
+          if (Array.isArray(result.issues) && result.issues.length > 0) {
+            result.issues.forEach((issue) => {
+              if (issue.issue_text) {
+                y = printText(`🔴 Issue: ${sanitizeText(issue.issue_text)}`, margin + 5, y);
+                y = printText(
+                  `⚠️ Severity: ${sanitizeText(issue.issue_severity) || "N/A"} | 🔍 Confidence: ${sanitizeText(issue.issue_confidence) || "N/A"}`,
+                  margin + 5,
+                  y
+                );
+                y = printText(`📌 Line: ${sanitizeText(issue.line_number) || "N/A"}`, margin + 5, y);
+                y = printText(`🔗 More Info: ${sanitizeText(issue.more_info) || "N/A"}`, margin + 5, y);
+              } else {
+                y = printText("No vulnerability details provided.", margin + 5, y);
+              }
+            });
+          } else {
+            y = printText(`- ${sanitizeText(result.issues)}`, margin + 5, y);
+          }
+          y += 5;
         });
       }
     } else {
-      doc.text(
-        "No detailed results available for this assessment type.",
-        margin,
-        y
-      );
-      y += 8;
+      y = printText("No detailed results available for this assessment type.", margin, y);
+    }
+
+    // Recommendations section
+    doc.setFont("helvetica", "bold");
+    y = printText("Recommendations:", margin, y);
+    doc.setFont("helvetica", "normal");
+    if (assessment.recommendations && assessment.recommendations.length > 0) {
+      assessment.recommendations.forEach((rec) => {
+        y = printText("- " + sanitizeText(rec), margin + 5, y);
+      });
+    } else {
+      y = printText("No recommendations available.", margin + 5, y);
     }
 
     // Footer
     doc.setFontSize(10);
     doc.setFont("helvetica", "italic");
-    doc.text(
-      "Generated by NeuroShield Dashboard",
-      pageWidth / 2,
-      doc.internal.pageSize.getHeight() - 10,
-      { align: "center" }
-    );
+    doc.text("Generated by NeuroShield Dashboard", pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: "center" });
     doc.save(`assessment-${assessment._id}.pdf`);
   };
 
-  // Filter assessments based on tab
+  // Filter assessments by tab (Overall, Vulnerability, Attack, Code, Compliance)
   const filteredAssessments = assessments.filter((assessment) => {
-    if (tabValue === 0) return true; // Overall: all
-    if (tabValue === 1) return assessment.type === "vulnerability";
-    if (tabValue === 2) return assessment.type === "deployed";
-    if (tabValue === 3) return assessment.type === "dataset";
+    if (tabValue === 0) return true;
+    if (tabValue === 1) return assessment.type.toLowerCase() === "vulnerability";
+    if (tabValue === 2) return assessment.type.toLowerCase() === "deployed";
+    if (tabValue === 3) return assessment.type.toLowerCase() === "code";
+    if (tabValue === 4) return assessment.type.toLowerCase() === "compliance";
     return true;
   });
 
   return (
     <DashboardContainer>
-      <Typography
-        variant="h3"
-        align="center"
-        sx={{ color: "#00bcd4", fontWeight: "bold", mb: 2 }}
-      >
+      <Typography variant="h3" align="center" sx={{ color: "#00bcd4", fontWeight: "bold", mb: 2 }}>
         Assessment Dashboard
       </Typography>
       <StyledAppBar position="static" color="default">
@@ -283,26 +339,11 @@ const AssessmentDashboard = () => {
           indicatorColor="primary"
           textColor="primary"
         >
-          <Tab
-            label="Overall"
-            id="assessment-tab-0"
-            aria-controls="assessment-tabpanel-0"
-          />
-          <Tab
-            label="Framework Vulnerability"
-            id="assessment-tab-1"
-            aria-controls="assessment-tabpanel-1"
-          />
-          <Tab
-            label="Attack Assessment"
-            id="assessment-tab-2"
-            aria-controls="assessment-tabpanel-2"
-          />
-          <Tab
-            label="Data Assessment"
-            id="assessment-tab-3"
-            aria-controls="assessment-tabpanel-3"
-          />
+          <Tab label="Overall" id="assessment-tab-0" aria-controls="assessment-tabpanel-0" />
+          <Tab label="Framework Vulnerability" id="assessment-tab-1" aria-controls="assessment-tabpanel-1" />
+          <Tab label="Attack Assessment" id="assessment-tab-2" aria-controls="assessment-tabpanel-2" />
+          <Tab label="Code Assessment" id="assessment-tab-3" aria-controls="assessment-tabpanel-3" />
+          <Tab label="Compliance" id="assessment-tab-4" aria-controls="assessment-tabpanel-4" />
         </Tabs>
       </StyledAppBar>
       <TabPanel value={tabValue} index={0}>
@@ -353,6 +394,18 @@ const AssessmentDashboard = () => {
           />
         </StyledPaper>
       </TabPanel>
+      <TabPanel value={tabValue} index={4}>
+        <StyledPaper>
+          <EnhancedTable
+            assessments={filteredAssessments}
+            toggleExpand={toggleExpand}
+            expandedId={expandedId}
+            handleViewDetails={handleViewDetails}
+            handleDelete={handleDelete}
+            handleDownloadPDF={handleDownloadPDF}
+          />
+        </StyledPaper>
+      </TabPanel>
 
       {/* Enhanced Details Modal */}
       <Dialog
@@ -375,28 +428,81 @@ const AssessmentDashboard = () => {
                 <strong>Type:</strong> {selectedAssessment.type}
               </Typography>
               <Typography variant="subtitle1" gutterBottom>
-                <strong>Date:</strong>{" "}
-                {new Date(selectedAssessment.createdAt).toLocaleString()}
+                <strong>Date:</strong> {new Date(selectedAssessment.createdAt).toLocaleString()}
               </Typography>
-              {selectedAssessment.type === "vulnerability" ||
-              selectedAssessment.type === "code" ? (
+              {selectedAssessment.type.toLowerCase() === "code" ? (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Code Assessment Output
+                  </Typography>
+                  {selectedAssessment.data.vulnerabilities.length === 0 ? (
+                    <Typography>No vulnerabilities found.</Typography>
+                  ) : (
+                    selectedAssessment.data.vulnerabilities.map((result, idx) => (
+                      <Box
+                        key={idx}
+                        sx={{
+                          bgcolor: "#424242",
+                          color: "#fff",
+                          p: 2,
+                          mb: 2,
+                          borderRadius: "8px",
+                        }}
+                      >
+                        <Typography variant="subtitle1">
+                          <strong>File:</strong> {result.file}
+                        </Typography>
+                        {Array.isArray(result.issues) && result.issues.length > 0 ? (
+                          result.issues.map((issue, i) => (
+                            <Box key={i} sx={{ mt: 1 }}>
+                              {issue.issue_text ? (
+                                <>
+                                  <Typography variant="body2">
+                                    🔴 <strong>Issue:</strong> {issue.issue_text}
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    ⚠️ <strong>Severity:</strong> {issue.issue_severity || "N/A"} | 🔍 <strong>Confidence:</strong> {issue.issue_confidence || "N/A"}
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    📌 <strong>Line:</strong> {issue.line_number || "N/A"}
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    🔗 <strong>More Info:</strong>{" "}
+                                    {issue.more_info ? (
+                                      <a href={issue.more_info} target="_blank" rel="noopener noreferrer" style={{ color: "#00bcd4" }}>
+                                        {issue.more_info}
+                                      </a>
+                                    ) : (
+                                      "N/A"
+                                    )}
+                                  </Typography>
+                                </>
+                              ) : (
+                                <Typography variant="body2">
+                                  No vulnerability details provided.
+                                </Typography>
+                              )}
+                            </Box>
+                          ))
+                        ) : (
+                          <Typography variant="body2">No vulnerability details provided.</Typography>
+                        )}
+                      </Box>
+                    ))
+                  )}
+                </Box>
+              ) : selectedAssessment.type.toLowerCase() === "vulnerability" ? (
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="h6" gutterBottom>
                     Vulnerability & Mitigation Details
                   </Typography>
-                  {(selectedAssessment.type === "vulnerability" &&
-                    selectedAssessment.data.details.length === 0) ||
-                  (selectedAssessment.type === "code" &&
-                    selectedAssessment.data.vulnerabilities.length === 0) ? (
+                  {selectedAssessment.data.details.length === 0 ? (
                     <Typography>No vulnerabilities found.</Typography>
                   ) : (
                     <Grid container spacing={2}>
-                      {(selectedAssessment.type === "vulnerability"
-                        ? selectedAssessment.data.details
-                        : selectedAssessment.data.vulnerabilities
-                      ).map((vuln, index) => (
+                      {selectedAssessment.data.details.map((vuln, index) => (
                         <Grid item xs={12} sm={6} md={4} key={index}>
-                          <StyledPaper
+                          <Paper
                             sx={{
                               bgcolor: "#424242",
                               color: "#fff",
@@ -404,10 +510,7 @@ const AssessmentDashboard = () => {
                               mb: 1,
                             }}
                           >
-                            <Typography
-                              variant="subtitle2"
-                              sx={{ fontWeight: "bold" }}
-                            >
+                            <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
                               Framework: {vuln.framework}
                             </Typography>
                             <Typography variant="subtitle2">
@@ -420,13 +523,38 @@ const AssessmentDashboard = () => {
                               <strong>Severity:</strong> {vuln.severity_score}
                             </Typography>
                             <Typography variant="body2">
-                              <strong>Mitigation:</strong>{" "}
-                              {vuln.mitigation || "No mitigation provided"}
+                              <strong>Mitigation:</strong> {vuln.mitigation || "No mitigation provided"}
                             </Typography>
-                          </StyledPaper>
+                          </Paper>
                         </Grid>
                       ))}
                     </Grid>
+                  )}
+                </Box>
+              ) : selectedAssessment.type.toLowerCase() === "compliance" ? (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Compliance Assessment Details
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Score:</strong> {selectedAssessment.score ? selectedAssessment.score.toFixed(2) : 0}%
+                  </Typography>
+                  {selectedAssessment.questions ? (
+                    selectedAssessment.questions.map((q) => (
+                      <Box key={q.id} sx={{ mb: 1, p: 1, bgcolor: "#424242", borderRadius: "8px" }}>
+                        <Typography variant="body2">
+                          <strong>Question:</strong> {q.question}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Your Answer:</strong> {selectedAssessment.responses[String(q.id)] || "N/A"}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Expected Answer:</strong> {q.expectedAnswer}
+                        </Typography>
+                      </Box>
+                    ))
+                  ) : (
+                    <Typography variant="body2">Questionnaire details not available.</Typography>
                   )}
                 </Box>
               ) : (
@@ -438,11 +566,7 @@ const AssessmentDashboard = () => {
           )}
         </DialogContent>
         <DialogActions sx={{ bgcolor: "#00bcd4" }}>
-          <Button
-            onClick={handleCloseDetailsModal}
-            variant="contained"
-            sx={{ color: "#fff" }}
-          >
+          <Button onClick={handleCloseDetailsModal} variant="contained" sx={{ color: "#fff" }}>
             Close
           </Button>
         </DialogActions>
@@ -451,7 +575,7 @@ const AssessmentDashboard = () => {
   );
 };
 
-// Enhanced table component with row-by-row layout
+// Enhanced table component with an added "Compliance" column.
 const EnhancedTable = ({
   assessments,
   toggleExpand,
@@ -467,22 +591,20 @@ const EnhancedTable = ({
           <StyledTableHeadCell>Type</StyledTableHeadCell>
           <StyledTableHeadCell>Date</StyledTableHeadCell>
           <StyledTableHeadCell>Count</StyledTableHeadCell>
+          <StyledTableHeadCell>Compliance</StyledTableHeadCell>
           <StyledTableHeadCell>Mitigations</StyledTableHeadCell>
           <StyledTableHeadCell>Actions</StyledTableHeadCell>
         </TableRow>
       </TableHead>
       <TableBody>
         {assessments.map((assessment) => {
-          const vulnerabilities =
-            assessment.type === "code"
-              ? assessment.data.vulnerabilities || []
-              : assessment.type === "vulnerability"
-              ? assessment.data.details || []
-              : [];
-          const count =
-            assessment.type === "deployed" || assessment.type === "dataset"
-              ? "N/A"
-              : vulnerabilities.length;
+          let vulnerabilities = [];
+          if (assessment.type.toLowerCase() === "code") {
+            vulnerabilities = assessment.data.vulnerabilities || [];
+          } else if (assessment.type.toLowerCase() === "vulnerability") {
+            vulnerabilities = assessment.data.details || [];
+          }
+          const count = assessment.type.toLowerCase() === "deployed" ? "N/A" : vulnerabilities.length;
           return (
             <React.Fragment key={assessment._id}>
               <TableRow
@@ -492,20 +614,35 @@ const EnhancedTable = ({
                 }}
               >
                 <StyledTableCell>{assessment.type}</StyledTableCell>
-                <StyledTableCell>
+                <StyledTableHeadCell>
                   {new Date(assessment.createdAt).toLocaleString()}
-                </StyledTableCell>
+                </StyledTableHeadCell>
                 <StyledTableCell>{count}</StyledTableCell>
                 <StyledTableCell>
-                  {vulnerabilities.length > 0 ? (
+                  {assessment.type.toLowerCase() === "compliance" ? (
+                    <Box>
+                      {assessment.score ? `${assessment.score.toFixed(2)}%` : "N/A"}
+                      <Button
+                        variant="contained"
+                        sx={{ bgcolor: "#4caf50", color: "#fff", ml: 1 }}
+                        onClick={() => handleDownloadPDF(assessment)}
+                        size="small"
+                      >
+                        PDF
+                      </Button>
+                    </Box>
+                  ) : (
+                    "N/A"
+                  )}
+                </StyledTableCell>
+                <StyledTableCell>
+                  {assessment.type.toLowerCase() === "vulnerability" && vulnerabilities.length > 0 ? (
                     <Button
                       variant="contained"
                       sx={{ bgcolor: "#00bcd4", color: "#fff" }}
                       onClick={() => toggleExpand(assessment._id)}
                     >
-                      {expandedId === assessment._id
-                        ? "Hide Mitigations"
-                        : "Show Mitigations"}
+                      {expandedId === assessment._id ? "Hide Mitigations" : "Show Mitigations"}
                     </Button>
                   ) : (
                     "N/A"
@@ -520,13 +657,6 @@ const EnhancedTable = ({
                     View Details
                   </Button>
                   <Button
-                    variant="contained"
-                    sx={{ bgcolor: "#4caf50", color: "#fff", mr: 1 }}
-                    onClick={() => handleDownloadPDF(assessment)}
-                  >
-                    Download PDF
-                  </Button>
-                  <Button
                     variant="outlined"
                     sx={{ borderColor: "#f44336", color: "#f44336" }}
                     onClick={() => handleDelete(assessment._id)}
@@ -536,31 +666,14 @@ const EnhancedTable = ({
                 </StyledTableCell>
               </TableRow>
               <TableRow>
-                <TableCell colSpan={5} sx={{ p: 0 }}>
-                  <Collapse
-                    in={expandedId === assessment._id}
-                    timeout="auto"
-                    unmountOnExit
-                  >
-                    <Box
-                      sx={{
-                        m: 2,
-                        bgcolor: "rgba(0,188,212,0.1)",
-                        p: 2,
-                        borderRadius: "8px",
-                      }}
-                    >
-                      <Typography
-                        variant="subtitle1"
-                        sx={{ color: "#00bcd4", mb: 1 }}
-                      >
+                <TableCell colSpan={6} sx={{ p: 0 }}>
+                  <Collapse in={expandedId === assessment._id} timeout="auto" unmountOnExit>
+                    <Box sx={{ m: 2, bgcolor: "rgba(0,188,212,0.1)", p: 2, borderRadius: "8px" }}>
+                      <Typography variant="subtitle1" sx={{ color: "#00bcd4", mb: 1 }}>
                         Mitigation Recommendations
                       </Typography>
                       {vulnerabilities.map((vuln, index) => (
-                        <StyledPaper
-                          key={index}
-                          sx={{ bgcolor: "rgba(255,255,255,0.1)", p: 1, mb: 1 }}
-                        >
+                        <Paper key={index} sx={{ bgcolor: "#424242", color: "#fff", p: 1, mb: 1 }}>
                           <Typography variant="body2">
                             <strong>Framework:</strong> {vuln.framework}
                           </Typography>
@@ -568,8 +681,7 @@ const EnhancedTable = ({
                             <strong>CVE:</strong> {vuln.CVE}
                           </Typography>
                           <Typography variant="body2">
-                            <strong>Mitigation:</strong>{" "}
-                            {vuln.mitigation || "No mitigation provided"}
+                            <strong>Mitigation:</strong> {vuln.mitigation || "No mitigation provided"}
                           </Typography>
                           <Typography variant="body2">
                             <strong>Attack:</strong> {vuln.attack_type}
@@ -577,29 +689,29 @@ const EnhancedTable = ({
                           <Typography variant="body2">
                             <strong>Severity:</strong> {vuln.severity_score}
                           </Typography>
-                          {vuln.fixCommand && vuln.fixCommand !== "No fix command available" && (
-                            <Box sx={{ mt: 1 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                                Fix Command:
-                              </Typography>
-                              <Typography variant="body2" sx={{ fontStyle: 'italic', mb: 1 }}>
-                                {vuln.fixCommand}
-                              </Typography>
-                              <Button 
-                                variant="contained" 
-                                size="small" 
-                                onClick={() => {
-                                  navigator.clipboard.writeText(vuln.fixCommand)
-                                    .then(() => alert("Fix command copied to clipboard!"))
-                                    .catch(err => console.error("Clipboard error:", err));
-                                }}
-                              >
-                                Copy
-                              </Button>
-                            </Box>
-                          )}
-
-                        </StyledPaper>
+                          {vuln.fixCommand &&
+                            vuln.fixCommand !== "No fix command available" && (
+                              <Box sx={{ mt: 1 }}>
+                                <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                                  Fix Command:
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontStyle: "italic", mb: 1 }}>
+                                  {vuln.fixCommand}
+                                </Typography>
+                                <Button
+                                  variant="contained"
+                                  size="small"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(vuln.fixCommand)
+                                      .then(() => alert("Fix command copied to clipboard!"))
+                                      .catch(err => console.error("Clipboard error:", err));
+                                  }}
+                                >
+                                  Copy
+                                </Button>
+                              </Box>
+                            )}
+                        </Paper>
                       ))}
                     </Box>
                   </Collapse>

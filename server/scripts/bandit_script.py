@@ -1,13 +1,14 @@
+#server/scripts/bandit_script.py
 import subprocess
 import sys
 import json
 import os
-
+import shutil
 
 def run_bandit(file_path):
     """Runs Bandit using its full path to avoid execution issues on Windows."""
-    project_root = os.path.abspath(os.path.join(os.getcwd(), ".."))  # Moves to project root
-    bandit_path = os.path.join(project_root, "env", "Scripts", "bandit.exe")
+    bandit_path = shutil.which("bandit")  # Auto-detect Bandit path
+
   # Update this path to match your venv
 
     # Ensure the file exists before running Bandit

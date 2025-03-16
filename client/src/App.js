@@ -15,11 +15,11 @@ import Terms from './pages/Terms';
 import TesterDashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
-import CodeAssessment from './pages/CodeAssessment';
+import FrameworkVulnerabilityAssessment from './pages/FrameworkVulnerabilityAssessment';
 import DeployedModelAssessment from './pages/DeployedModelAssessment';
-import DatasetAssessment from './pages/VulncodeAssessment';
+import CodeAssessment from './pages/CodeAssessment';  // Updated import for code assessment
 import AssessmentDashboard from './pages/AssessmentDashboard';
-
+import ComplianceAssessment from './pages/ComplianceAssessment';
 
 function App() {
   return (
@@ -38,10 +38,11 @@ function App() {
         <Route path="/dashboard" element={<TesterDashboard />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
-        <Route path="/code-assessment" element={<CodeAssessment />} />
+        <Route path="/framework-assessment" element={<FrameworkVulnerabilityAssessment />} />
         <Route path="/deployed-assessment" element={<DeployedModelAssessment />} />
-        <Route path="/Vulncode-assessment" element={<DatasetAssessment />} />
+        <Route path="/Vulncode-assessment" element={<CodeAssessment />} /> {/* Fixed route */}
         <Route path="/assessment-dashboard" element={<AssessmentDashboard />} />
+        <Route path="/compliance-assessment" element={<ComplianceAssessment />} />
       </Routes>
       <Footer />
     </>
