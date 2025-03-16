@@ -17,7 +17,7 @@ import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
 import CodeAssessment from './pages/CodeAssessment';
 import DeployedModelAssessment from './pages/DeployedModelAssessment';
-import DatasetAssessment from './pages/DatasetAssessment';
+import DatasetAssessment from './pages/VulncodeAssessment';
 import AssessmentDashboard from './pages/AssessmentDashboard';
 
 
@@ -40,7 +40,7 @@ function App() {
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/code-assessment" element={<CodeAssessment />} />
         <Route path="/deployed-assessment" element={<DeployedModelAssessment />} />
-        <Route path="/dataset-assessment" element={<DatasetAssessment />} />
+        <Route path="/Vulncode-assessment" element={<DatasetAssessment />} />
         <Route path="/assessment-dashboard" element={<AssessmentDashboard />} />
       </Routes>
       <Footer />

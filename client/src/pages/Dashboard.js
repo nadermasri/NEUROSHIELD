@@ -54,10 +54,10 @@ const TesterDashboard = () => {
       link: '/deployed-assessment'
     },
     {
-      title: 'Dataset Assessment',
-      description: 'Evaluate training datasets for quality and security.',
+      title: 'Code Assessment',
+      description: 'Upload your code for security analysis.',
       image: '/assets/offerings/data.png',
-      link: '/dataset-assessment'
+      link: '/Vulncode-assessment'
     },
     {
       title: 'Assessment Dashboard',
@@ -97,14 +97,14 @@ const TesterDashboard = () => {
       </Grid>
 
       {/* 🚀 Add Upload Section Below the Dashboard Grid */}
-      <Box mt={4}>
+      {/* <Box mt={4}>
         <UploadCard>
           <Typography variant="h5" style={{ color: '#00bcd4', fontWeight: 'bold', marginBottom: '1rem' }}>
             Upload Your Python Files for Security Assessment
           </Typography>
           <UploadForm />
         </UploadCard>
-      </Box>
+      </Box> */}
     </DashboardContainer>
   );
 };
