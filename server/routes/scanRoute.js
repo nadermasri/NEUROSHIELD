@@ -45,8 +45,11 @@ const findPythonFiles = (dir) => {
 
 // 🔹 Run Bandit security scan on Python files
 const runBanditPythonScript = async (filePath) => {
-  return new Promise((resolve) => {
-    const pythonScriptPath = path.join(__dirname, "../scripts/bandit_script.py");
+  return new Promise((resolve, reject) => {
+    const pythonScriptPath = path.join(
+      __dirname,
+      "../scripts/bandit_script.py"
+    );
 
     console.log("✅ Running Python Bandit Script on:", filePath);
 
@@ -58,15 +61,24 @@ const runBanditPythonScript = async (filePath) => {
       });
     }
 
-    execFile("python", [pythonScriptPath, filePath], { encoding: "utf8" }, (error, stdout, stderr) => {
-      if (error || stderr) {
-        console.error("❌ Bandit execution failed:", stderr || error.message);
-        return resolve({
-          file: path.basename(filePath),
-          error: "Bandit scan failed",
-          details: stderr || error.message,
-        });
-      }
+    execFile(
+      "python",
+      [pythonScriptPath, filePath],
+      { encoding: "utf8" },
+      (error, stdout, stderr) => {
+        if (error || stderr) {
+          console.error(
+            `❌ Python script execution failed:`,
+            stderr || error.message
+          );
+          return resolve({
+            file: path.basename(filePath),
+            error: {
+              error: "Python Bandit script failed",
+              details: stderr || error.message,
+            },
+          });
+        }
 
       try {
         console.log("🔍 Bandit Output:", stdout);
