@@ -1,0 +1,52 @@
+﻿Action ID,Question,Category/Subcategory,Expected Answer
+DP-1.1-001,"Have you defined and documented the unit of privacy (i.e., the definition of neighboring datasets) used in your framework?",Differential Privacy / Unit of Privacy,Yes
+DP-1.2-001,Have you specified and justified your privacy parameter (ε) including its impact on the privacy-utility tradeoff?,Differential Privacy / Privacy Parameters,Yes
+DP-1.3-001,"Have you selected and documented the differential privacy variant (e.g., pure ε-DP, (ε, δ)-DP, Rényi DP, zCDP, GDP) for your use case?",Differential Privacy / Variants,Yes
+DP-1.4-001,Do you perform hypothesis testing or similar analyses to interpret and compare your differential privacy guarantees?,Differential Privacy / Guarantee Interpretation,Yes
+DP-1.5-001,Have you established a privacy budget and procedures to manage cumulative privacy loss across multiple data releases?,Differential Privacy / Composition,Yes
+DP-1.6-001,"Are the conversion methods used to translate between differential privacy variants (to (ε, δ)-DP) documented and justified?",Differential Privacy / Conversion Methods,Yes
+DP-1.7-001,Do you conduct empirical audits to verify that your differential privacy mechanisms are operating as expected?,Differential Privacy / Empirical Evaluation,Yes
+DP-1.8-001,Have you assessed potential privacy hazards associated with high ε values and established acceptable ranges and guidelines?,Differential Privacy / Privacy Hazard,Yes
+DP-1.9-001,Is your differential privacy implementation aligned with applicable NIST guidelines and federal regulatory requirements?,Differential Privacy / Regulatory Compliance,Yes
+DP-2.4-001,"Have you defined what constitutes neighboring datasets by clearly specifying both what it means for two datasets to ""differ"" and what is meant by ""one person's data""?",Differential Privacy / Unit of Privacy,Yes
+DP-2.4-002,"Have you evaluated and chosen an appropriate unit of privacy (e.g., user-level vs. event-level) based on your real-world privacy requirements?",Differential Privacy / Unit of Privacy,Yes
+DP-2.4-003,"Have you assessed whether bounded or unbounded differential privacy is appropriate for your use case, especially in relation to the sensitivity of dataset size?",Differential Privacy / Bounded vs. Unbounded Privacy,Yes
+DP-2.4-004,"Have you analyzed the potential privacy risks associated with using event-level privacy, and considered adopting user-level privacy for stronger protection?",Differential Privacy / Unit of Privacy,Yes
+DP-2.4-005,"Have you implemented measures, such as bounding contributions, to transform event-level privacy into a stronger user-level privacy guarantee when needed?",Differential Privacy / Contribution Bounding,Yes
+DP-3.1-001,"Have you implemented standard differentially private mechanisms (e.g., Laplace and Gaussian) and defined the sensitivity measures (L1, L2) for your queries?",Differential Privacy / Basic Mechanisms,Yes
+DP-3.1-002,Have you selected the appropriate mechanism (Laplace vs. Gaussian) based on the output dimensionality and accuracy requirements?,Differential Privacy / Mechanism Selection,Yes
+DP-3.2-001,"Have you established metrics (e.g., absolute error, relative error, confidence intervals) to assess the utility and accuracy of your differentially private outputs?",Differential Privacy / Utility and Accuracy,Yes
+DP-3.2-002,Have you compared the error performance of your mechanism with alternative approaches such as subsampling?,Differential Privacy / Utility and Accuracy,Yes
+DP-3.2-003,Have you implemented an automated monitoring process to ensure the utility of released statistics remains within expected bounds over time?,Differential Privacy / Utility and Accuracy,Yes
+DP-3.3-001,"Have you assessed the potential for systemic bias introduced by your differentially private algorithms, particularly for small or marginalized groups?",Differential Privacy / Bias,Yes
+DP-3.3-002,"Have you evaluated the impact of post-processing steps (e.g., rounding, enforcing non-negative counts) on human and statistical bias?",Differential Privacy / Bias,Yes
+DP-3.3-003,Have you quantified statistical bias by comparing the true query result with the expected value of the noisy output?,Differential Privacy / Bias,Yes
+DP-3.4-001,Have you documented and evaluated the overall design of your differentially private analytics queries to ensure that noise is properly added and privacy guarantees are met?,Differential Privacy / Analytics Queries,Yes
+DP-3.4.1-001,"For counting queries, have you implemented noise addition proportional to the query’s sensitivity and ensured that the set of bins is pre‐specified to avoid leakage?",Differential Privacy / Counting Queries,Yes
+DP-3.4.2-001,"For summation queries, have you enforced fixed upper and lower bounds (clipping) on data elements and documented the impact on utility and potential bias?",Differential Privacy / Summation Queries,Yes
+DP-3.4.3-001,Have you decomposed average queries into counting and summation queries and verified that the combined noise yields acceptable accuracy?,Differential Privacy / Average Queries,Yes
+DP-3.4.4-001,"Have you avoided direct use of min/max queries due to their unbounded sensitivity, and implemented alternative methods such as differentially private quantile estimation?",Differential Privacy / Min/Max Queries,Yes
+DP-3.5-001,"Have you integrated differentially private machine learning techniques (e.g., DP-SGD) into your training process to prevent memorization of sensitive training data?",Differential Privacy / Machine Learning,Yes
+DP-3.5-002,Have you evaluated the privacy-utility tradeoffs across different model complexities and considered pre-training on public data with subsequent private fine-tuning?,Differential Privacy / Machine Learning,Yes
+DP-3.5-003,"Have you conducted tests (e.g., membership inference or data extraction attacks) to validate that your machine learning models satisfy differential privacy guarantees?",Differential Privacy / Machine Learning,Yes
+DP-3.6-001,Have you generated synthetic data using differentially private methods (such as marginal-based approaches or DP deep learning) and compared their utility and privacy performance?,Differential Privacy / Synthetic Data,Yes
+DP-3.6-002,Have you ensured that the synthetic data preserves the statistical properties of the original dataset while maintaining the differential privacy guarantee?,Differential Privacy / Synthetic Data,Yes
+DP-3.6-003,"Have you avoided non-differentially private synthetic data techniques that are vulnerable to privacy attacks, and used only well-tested DP-compliant methods?",Differential Privacy / Synthetic Data,Yes
+DP-3.7-001,"Have you defined a meaningful unit of privacy for unstructured data (e.g., text, images, audio, video) that accounts for the presence of multiple individuals?",Differential Privacy / Unstructured Data,Yes
+DP-3.7-002,"Have you identified and evaluated the privacy hazards specific to unstructured data, considering that relying solely on ownership or authorship may be insufficient?",Differential Privacy / Unstructured Data,Yes
+DP-3.7-003,Have you employed techniques or consulted domain experts to develop differentially private methods for analyzing unstructured data formats?,Differential Privacy / Unstructured Data,Yes
+DP-4.1-001,Have you chosen between the data release model and the interactive query answering model based on your deployment requirements and constraints?,Differential Privacy / Query Models,Yes
+DP-4.1-002,Have you implemented side channel protections in your query model to prevent indirect leakage of sensitive information?,Differential Privacy / Query Models & Security,Yes
+DP-4.2-001,"Have you clearly defined and documented the trust assumptions for all parties (data subjects, data curators, and data consumers) in your system?",Differential Privacy / Trust Models,Yes
+DP-4.2-002,"Have you selected an appropriate trust model (e.g., central, local, shuffle, or secure computation) based on your organization’s security posture and data sensitivity?",Differential Privacy / Trust Models,Yes
+DP-4.2-003,Have you conducted risk assessments to verify that the trust model’s assumptions hold in the real-world deployment?,Differential Privacy / Trust Models,Yes
+DP-4.3-001,Have you implemented differentially private mechanisms using well‐tested libraries rather than developing custom implementations?,Differential Privacy / Mechanism Implementation,Yes
+DP-4.3-002,Have you evaluated the impact of floating‐point arithmetic imprecision on noise generation and mitigated potential leakage risks?,Differential Privacy / Mechanism Implementation,Yes
+DP-4.3-003,"Have you implemented countermeasures to prevent timing channel attacks (e.g., by standardizing query execution time) in your system?",Differential Privacy / Mechanism Implementation / Side Channels,Yes
+DP-4.3-004,"Have you assessed backend issues—such as error responses (e.g., division by zero) that might leak sensitive information—and addressed them?",Differential Privacy / Mechanism Implementation,Yes
+DP-4.3-005,"Have you established a secure, non‐leaking process for tuning hyperparameters (e.g., clipping thresholds) without using sensitive data?",Differential Privacy / Mechanism Implementation,Yes
+DP-4.4-001,"Have you implemented strong data security measures (e.g., encryption, robust key management, and access control) to protect stored data?",Differential Privacy / Data Security and Access Control,Yes
+DP-4.4-002,Have you enforced strict access control policies to ensure only authorized users can access sensitive data during computation and storage?,Differential Privacy / Data Security and Access Control,Yes
+DP-4.5-001,Have you evaluated whether all collected sensitive data is necessary and implemented strategies to minimize data collection?,Differential Privacy / Data Collection Exposure,Yes
+DP-4.5-002,"Have you assessed the residual privacy risks from collecting sensitive data, even when using differential privacy, and planned accordingly?",Differential Privacy / Data Collection Exposure,Yes
+DP-4.6-001,"Have you documented the overall deployment of your differentially private system—including parameter choices, implementation challenges, and mitigation measures—to ensure robust privacy protection?",Differential Privacy / System Deployment and Evaluation,Yes
