@@ -1,5 +1,6 @@
 //server/controllers/assessmentController.js
 const Assessment = require('../models/Assessment');
+const ComplianceAssessment = require('../models/ComplianceAssessment'); // Include compliance assessments
 const { exec } = require('child_process');
 const path = require('path');
 
@@ -121,8 +122,20 @@ exports.submitDeployedAssessment = async (req, res) => {
 // Get all assessments for the logged in user
 exports.getUserAssessments = async (req, res) => {
   try {
+    // Fetch assessments from the Assessment collection
     const assessments = await Assessment.find({ user: req.user.id }).sort({ createdAt: -1 });
-    res.status(200).json(assessments);
+    // Fetch compliance assessments from the ComplianceAssessment collection
+    const complianceAssessments = await ComplianceAssessment.find({ user: req.user.id }).sort({ createdAt: -1 });
+    // Map each compliance assessment to include a type property set to "compliance"
+    const mappedCompliance = complianceAssessments.map(assessment => ({
+      ...assessment.toObject(),
+      type: "compliance"
+    }));
+    // Combine the two arrays
+    const combinedAssessments = assessments.concat(mappedCompliance);
+    // Sort the combined array by createdAt in descending order
+    combinedAssessments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    res.status(200).json(combinedAssessments);
   } catch (error) {
     console.error('Error fetching user assessments:', error);
     res.status(500).json({ message: 'Error fetching assessments.' });
@@ -130,12 +143,18 @@ exports.getUserAssessments = async (req, res) => {
 };
 
 // Delete an assessment by id (only if it belongs to the user)
+// Now, if not found in Assessment, also attempt deletion in ComplianceAssessment.
 exports.deleteAssessment = async (req, res) => {
   try {
     const { id } = req.params;
-    const assessment = await Assessment.findOneAndDelete({ _id: id, user: req.user.id });
+    // Attempt deletion from Assessment collection
+    let assessment = await Assessment.findOneAndDelete({ _id: id, user: req.user.id });
     if (!assessment) {
-      return res.status(404).json({ message: 'Assessment not found or unauthorized' });
+      // If not found, try deletion from ComplianceAssessment collection
+      assessment = await ComplianceAssessment.findOneAndDelete({ _id: id, user: req.user.id });
+      if (!assessment) {
+        return res.status(404).json({ message: 'Assessment not found or unauthorized' });
+      }
     }
     res.status(200).json({ message: 'Assessment deleted successfully' });
   } catch (error) {
