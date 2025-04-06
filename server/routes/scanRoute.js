@@ -222,4 +222,93 @@ router.post("/", verifyAccessToken, upload.array("files"), async (req, res) => {
   }
 });
 
+const axios = require("axios");
+const os = require("os");
+
+router.post("/github", verifyAccessToken, async (req, res) => {
+  const { repoUrl } = req.body;
+  if (!repoUrl || !repoUrl.startsWith("https://github.com/")) {
+    return res.status(400).json({ error: "Invalid GitHub URL" });
+  }
+
+  try {
+    // Convert repo URL to ZIP download link
+    let zipUrl = repoUrl;
+    if (zipUrl.endsWith("/")) zipUrl = zipUrl.slice(0, -1);
+    if (zipUrl.endsWith(".git")) zipUrl = zipUrl.slice(0, -4);
+    zipUrl += "/archive/refs/heads/main.zip";
+
+    const tmpZipPath = path.join(os.tmpdir(), `repo-${Date.now()}.zip`);
+    const writer = fs.createWriteStream(tmpZipPath);
+
+    // Download ZIP
+    const response = await axios({
+      url: zipUrl,
+      method: "GET",
+      responseType: "stream",
+    });
+
+    await new Promise((resolve, reject) => {
+      response.data.pipe(writer);
+      writer.on("finish", resolve);
+      writer.on("error", reject);
+    });
+
+    // Extract and scan
+    const extractPath = tmpZipPath.replace(".zip", "");
+    await extractZip(tmpZipPath, extractPath);
+
+    const pythonFiles = findPythonFiles(extractPath);
+    console.log(`📁 Found ${pythonFiles.length} Python files in GitHub repo`);
+
+    let scanResults = [];
+    if (pythonFiles.length > 0) {
+      const results = await Promise.all(pythonFiles.map(runBanditPythonScript));
+      scanResults.push(...results);
+    }
+
+    fs.rmSync(tmpZipPath, { force: true });
+    fs.rmSync(extractPath, { recursive: true, force: true });
+
+    const totalVulnerabilities = scanResults.reduce((acc, result) => {
+      return acc + (Array.isArray(result.issues) ? result.issues.length : 0);
+    }, 0);
+
+    const riskLevel =
+      totalVulnerabilities === 0
+        ? "Low"
+        : totalVulnerabilities < 5
+        ? "Moderate"
+        : "High";
+
+    const summary = {
+      totalFilesScanned: pythonFiles.length,
+      totalVulnerabilities,
+      riskLevel,
+    };
+
+    const assessment = new Assessment({
+      user: req.user.id,
+      type: "code",
+      data: {
+        vulnerabilities: scanResults,
+        summary,
+        repo: repoUrl,
+      },
+    });
+
+    const savedAssessment = await assessment.save();
+
+    return res.status(200).json({
+      message: "GitHub repo scanned successfully.",
+      assessmentId: savedAssessment._id,
+      summary,
+      results: scanResults,
+    });
+  } catch (err) {
+    console.error("❌ GitHub scan failed:", err.message);
+    return res.status(500).json({ error: "Failed to scan GitHub repo." });
+  }
+});
+
 module.exports = router;
