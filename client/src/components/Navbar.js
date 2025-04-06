@@ -94,6 +94,7 @@ const Navbar = () => {
     { label: 'About Us', to: '/about' },
     { label: 'Learn More', to: '/learn-more' },
     { label: 'Contact Us', to: '/contact' },
+    { label: 'Adversarial Attack', to: '/adversarial-assessment' }
   ];
 
   // Define account items based on authentication status

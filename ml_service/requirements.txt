@@ -1,0 +1,9 @@
+flask
+flask-cors
+torch
+torchvision
+tensorflow
+numpy
+Pillow
+matplotlib
+adversarial-robustness-toolbox
