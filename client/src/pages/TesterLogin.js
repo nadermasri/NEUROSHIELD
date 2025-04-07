@@ -24,7 +24,8 @@ const TesterLogin = () => {
 
   // Fetch the CSRF token once when the component mounts
   useEffect(() => {
-    axios.get('http://localhost:5000/api/csrf-token')
+    axios
+      .get('http://localhost:5000/api/csrf-token', { withCredentials: true })
       .then(response => {
         setCsrfToken(response.data.csrfToken);
       })
@@ -39,7 +40,7 @@ const TesterLogin = () => {
       const res = await axios.post(
         'http://localhost:5000/api/auth/login',
         { email, password, role: 'tester' },
-        { headers: { 'csrf-token': csrfToken } }
+        { headers: { 'x-csrf-token': csrfToken }, withCredentials: true }
       );
       if (res.data.accessToken) {
         localStorage.setItem('token', res.data.accessToken);
