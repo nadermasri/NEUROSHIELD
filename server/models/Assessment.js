@@ -1,10 +1,10 @@
-//server/models/Assessment.js
+// server/models/Assessment.js
 const mongoose = require('mongoose');
 
 const AssessmentSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  // Updated enum to include 'vulnerability'
-  type: { type: String, enum: ['code', 'deployed', 'dataset', 'vulnerability'], required: true },
+  // Updated enum to include 'vulnerability' and 'adversarial'
+  type: { type: String, enum: ['code', 'deployed', 'dataset', 'vulnerability', 'adversarial'], required: true },
   data: { type: mongoose.Schema.Types.Mixed },
   createdAt: { type: Date, default: Date.now },
 });

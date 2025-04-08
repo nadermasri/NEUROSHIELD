@@ -1,3 +1,4 @@
+// client/src/pages/TesterDashboard.js
 import React from 'react';
 import { Container, Typography, Grid, Card, CardActionArea, CardContent, CardMedia } from '@mui/material';
 import { Link } from 'react-router-dom';
@@ -25,7 +26,7 @@ const NavCard = styled(Card)`
   border-radius: 15px;
   overflow: hidden;
   transition: transform 0.3s, box-shadow 0.3s;
-  height: 450px; /* Increased height */
+  height: 450px;
   display: flex;
   flex-direction: column;
   &:hover {
@@ -36,7 +37,7 @@ const NavCard = styled(Card)`
 
 // Card media with increased height and object-fit cover
 const NavCardMedia = styled(CardMedia)`
-  height: 220px; /* Increased image height */
+  height: 220px;
   object-fit: cover;
 `;
 
@@ -50,7 +51,6 @@ const NavCardContent = styled(CardContent)`
 `;
 
 // Container for the top text (title and description)
-// Fixed height ensures consistency; adjust as needed
 const TextContainer = styled.div`
   min-height: 100px;
   max-height: 120px;
@@ -86,7 +86,7 @@ const DetailText = styled(Typography)`
 `;
 
 const TesterDashboard = () => {
-  // Updated navigation options including a new card for Compliance & Regulation Assessment
+  // Updated navigation options
   const navOptions = [
     {
       title: 'Framework Vulnerability Assessment',
@@ -103,11 +103,11 @@ const TesterDashboard = () => {
       link: '/Vulncode-assessment'
     },
     {
-      title: 'Deployed Model Assessment',
-      description: 'Simulate attacks on your deployed models.',
-      detail: 'Evaluate the resilience of your live models by simulating real-world adversarial attacks and stress tests.',
+      title: 'Adversarial Attack Simulation',
+      description: 'Simulate adversarial attacks on your AI models.',
+      detail: 'Evaluate the resilience of your models by simulating adversarial attacks and analyzing the results.',
       image: '/assets/offerings/attack.png',
-      link: '/deployed-assessment'
+      link: '/adversarial-attack-simulation'
     },
     {
       title: 'Assessment Dashboard',
@@ -120,7 +120,7 @@ const TesterDashboard = () => {
       title: 'Compliance & Regulation Assessment',
       description: 'Check your compliance against AI regulatory frameworks.',
       detail: 'Evaluate your organization’s compliance with guidelines such as NIST AI RMF, NIST SP 800-226, and ISO 27001, and receive actionable recommendations.',
-      image: '/assets/offerings/compliance.png', // Ensure you have a relevant image here.
+      image: '/assets/offerings/compliance.png',
       link: '/compliance-assessment'
     }
   ];

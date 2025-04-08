@@ -162,3 +162,29 @@ exports.deleteAssessment = async (req, res) => {
     res.status(500).json({ message: 'Error deleting assessment' });
   }
 };
+
+// New: Adversarial Assessment Submission
+exports.submitAdversarialAssessment = async (req, res) => {
+  try {
+    // Expect simulationData, pdfArtifact, and zipArtifact from the request body.
+    // You can adjust these field names as needed.
+    const { simulationData, pdfArtifact, zipArtifact } = req.body;
+
+    // Create a new Assessment document with type "adversarial"
+    const newAssessment = new Assessment({
+      user: req.user.id,
+      type: 'adversarial',
+      data: { simulationData, pdfArtifact, zipArtifact }
+    });
+
+    const savedAssessment = await newAssessment.save();
+
+    res.status(200).json({
+      message: 'Adversarial assessment saved successfully.',
+      assessment: savedAssessment
+    });
+  } catch (error) {
+    console.error("Error saving adversarial assessment:", error);
+    res.status(500).json({ message: "Error saving adversarial assessment." });
+  }
+};

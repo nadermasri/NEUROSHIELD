@@ -61,7 +61,6 @@ const AccountButtons = styled.div`
   }
 `;
 
-// MobileMenuButton styled component remains the same.
 const MobileMenuButton = styled(IconButton)`
   color: #ffffff;
 `;
@@ -88,13 +87,12 @@ const Navbar = () => {
     setDrawerOpen(open);
   };
 
-  // Define common navigation items
+  // Define common navigation items (removed Adversarial Attack)
   const navItems = [
     { label: 'Home', to: '/' },
     { label: 'About Us', to: '/about' },
     { label: 'Learn More', to: '/learn-more' },
-    { label: 'Contact Us', to: '/contact' },
-    { label: 'Adversarial Attack', to: '/adversarial-assessment' }
+    { label: 'Contact Us', to: '/contact' }
   ];
 
   // Define account items based on authentication status
@@ -166,7 +164,6 @@ const Navbar = () => {
               )
             )}
           </AccountButtons>
-          {/* Render Mobile Menu Button only on mobile screens */}
           {isMobile && (
             <MobileMenuButton edge="end" onClick={toggleDrawer(true)}>
               <MenuIcon />

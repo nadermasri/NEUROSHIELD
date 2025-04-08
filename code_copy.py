@@ -1,7 +1,11 @@
 import os
 
 # Folders to skip
+<<<<<<< HEAD
 EXCLUDED_DIRS = {'node_modules', 'env', '__pycache__'}
+=======
+EXCLUDED_DIRS = {'node_modules', 'env', '__pycache__', '.git', 'ml_service'}
+>>>>>>> 57f5a616ab72b474797ad8e1abc849b117dfa78e
 
 # Files to skip (including server/package-lock.json)
 EXCLUDED_FILES = {'.env', '.env.local', 'package-lock.json'}
@@ -40,4 +44,8 @@ with open("all_code.txt", "w", encoding="utf-8") as out:
                     with open(full_path, encoding="utf-8") as f:
                         out.write(f.read())
                 except Exception as e:
+<<<<<<< HEAD
                     out.write(f"[ERROR READING FILE: {e}]\n")
+=======
+                    out.write(f"[ERROR READING FILE: {e}]\n")
+>>>>>>> 57f5a616ab72b474797ad8e1abc849b117dfa78e
