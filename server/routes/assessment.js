@@ -1,3 +1,4 @@
+// server/routes/assessment.js
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -5,7 +6,7 @@ const { verifyAccessToken } = require('../middleware/authMiddleware');
 const {
   submitCodeAssessment,
   submitDeployedAssessment,
-  // submitDatasetAssessment, // Removed since it's no longer supported
+  submitAdversarialAssessment,  // NEW: Add the adversarial submission function
   getUserAssessments,
   deleteAssessment,
 } = require('../controllers/assessmentController');
@@ -24,7 +25,7 @@ const upload = multer({ storage });
 // Define assessment routes
 router.post('/code', verifyAccessToken, upload.single('codeFile'), submitCodeAssessment);
 router.post('/deployed', verifyAccessToken, submitDeployedAssessment);
-// Removed dataset assessment route
+router.post('/adversarial', verifyAccessToken, submitAdversarialAssessment);  // NEW route for adversarial assessment
 router.get('/my-assessments', verifyAccessToken, getUserAssessments);
 router.delete('/:id', verifyAccessToken, deleteAssessment);
 

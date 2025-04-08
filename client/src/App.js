@@ -12,15 +12,14 @@ import TesterLogin from './pages/TesterLogin';
 import AdminLogin from './pages/AdminLogin';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
-import TesterDashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
+import TesterDashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import FrameworkVulnerabilityAssessment from './pages/FrameworkVulnerabilityAssessment';
-import DeployedModelAssessment from './pages/DeployedModelAssessment';
-import CodeAssessment from './pages/CodeAssessment';  // Updated import for code assessment
+import AdversarialAttackSimulation from './pages/AdversarialAttackSimulation';
+import CodeAssessment from './pages/CodeAssessment';
 import AssessmentDashboard from './pages/AssessmentDashboard';
 import ComplianceAssessment from './pages/ComplianceAssessment';
-import AdversarialAssessment from './pages/AdversarialAssessment'; 
 
 function App() {
   return (
@@ -40,11 +39,10 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/framework-assessment" element={<FrameworkVulnerabilityAssessment />} />
-        <Route path="/deployed-assessment" element={<DeployedModelAssessment />} />
-        <Route path="/Vulncode-assessment" element={<CodeAssessment />} /> {/* Fixed route */}
+        <Route path="/adversarial-attack-simulation" element={<AdversarialAttackSimulation />} />
+        <Route path="/Vulncode-assessment" element={<CodeAssessment />} />
         <Route path="/assessment-dashboard" element={<AssessmentDashboard />} />
         <Route path="/compliance-assessment" element={<ComplianceAssessment />} />
-        <Route path="/adversarial-assessment" element={<AdversarialAssessment />} />
       </Routes>
       <Footer />
     </>

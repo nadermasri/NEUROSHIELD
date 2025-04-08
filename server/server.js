@@ -35,9 +35,9 @@ app.use(
 );
 app.options("*", cors());
 
-// Parse JSON and URL-encoded payloads
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+// Parse JSON and URL-encoded payloads with increased limits
+app.use(bodyParser.json({ limit: "100mb" }));
+app.use(bodyParser.urlencoded({ extended: true, limit: "100mb" }));
 
 // Global rate limiter
 const globalLimiter = rateLimit({
@@ -48,7 +48,6 @@ const globalLimiter = rateLimit({
 app.use(globalLimiter);
 
 // Updated CSRF protection
-
 const csrfProtection = csurf({
   cookie: {
     httpOnly: true,
@@ -56,11 +55,9 @@ const csrfProtection = csurf({
     sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
   },
 });
-//uncomment this
 app.use(csrfProtection);
 
 // CSRF token endpoint
-
 app.get("/api/csrf-token", (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
 });
