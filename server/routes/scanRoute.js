@@ -48,7 +48,10 @@ const findPythonFiles = (dir) => {
 // Run Bandit security scan on a Python file
 const runBanditPythonScript = async (filePath) => {
   return new Promise((resolve) => {
-    const pythonScriptPath = path.join(__dirname, "../scripts/bandit_script.py");
+    const pythonScriptPath = path.join(
+      __dirname,
+      "../scripts/bandit_script.py"
+    );
 
     console.log("✅ Running Python Bandit Script on:", filePath);
 
@@ -61,12 +64,15 @@ const runBanditPythonScript = async (filePath) => {
     }
 
     execFile(
-      "python3",
+      "python",
       [pythonScriptPath, filePath],
       { encoding: "utf8" },
       (error, stdout, stderr) => {
         if (error || stderr) {
-          console.error("❌ Python script execution failed:", stderr || error.message);
+          console.error(
+            "❌ Python script execution failed:",
+            stderr || error.message
+          );
           return resolve({
             file: path.basename(filePath),
             error: {
@@ -109,7 +115,10 @@ router.post("/", verifyAccessToken, upload.array("files"), async (req, res) => {
     return res.status(400).json({ error: "No files uploaded" });
   }
 
-  console.log("📂 Uploaded files:", req.files.map((f) => f.filename));
+  console.log(
+    "📂 Uploaded files:",
+    req.files.map((f) => f.filename)
+  );
 
   let scanResults = [];
 
@@ -126,15 +135,23 @@ router.post("/", verifyAccessToken, upload.array("files"), async (req, res) => {
         console.log(`🔍 Found ${pythonFiles.length} Python files in ZIP`);
 
         if (pythonFiles.length === 0) {
-          scanResults.push({ file: file.originalname, message: "No Python files found in ZIP" });
+          scanResults.push({
+            file: file.originalname,
+            message: "No Python files found in ZIP",
+          });
         } else {
-          const zipResults = await Promise.all(pythonFiles.map(runBanditPythonScript));
+          const zipResults = await Promise.all(
+            pythonFiles.map(runBanditPythonScript)
+          );
           scanResults.push(...zipResults);
         }
         fs.rmSync(extractPath, { recursive: true, force: true });
       } catch (error) {
         console.error("❌ Error extracting ZIP:", error);
-        scanResults.push({ file: file.originalname, error: "Failed to extract ZIP" });
+        scanResults.push({
+          file: file.originalname,
+          error: "Failed to extract ZIP",
+        });
       }
     } else if (ext === ".py") {
       console.log("🐍 Scanning single Python file:", filePath);
@@ -142,7 +159,10 @@ router.post("/", verifyAccessToken, upload.array("files"), async (req, res) => {
       scanResults.push(result);
     } else {
       console.warn("⚠️ Unsupported file type:", file.originalname);
-      scanResults.push({ file: file.originalname, error: "Unsupported file format" });
+      scanResults.push({
+        file: file.originalname,
+        error: "Unsupported file format",
+      });
     }
 
     // Cleanup: Delete the uploaded file if it exists
@@ -159,14 +179,19 @@ router.post("/", verifyAccessToken, upload.array("files"), async (req, res) => {
 
   // Aggregate vulnerabilities from all scan results
   let totalVulnerabilities = 0;
-  scanResults.forEach(result => {
+  scanResults.forEach((result) => {
     if (Array.isArray(result.issues)) {
       totalVulnerabilities += result.issues.length;
     }
   });
 
   // For simplicity, we compute a risk level based on the total vulnerabilities found
-  const riskLevel = totalVulnerabilities === 0 ? "Low" : totalVulnerabilities < 5 ? "Moderate" : "High";
+  const riskLevel =
+    totalVulnerabilities === 0
+      ? "Low"
+      : totalVulnerabilities < 5
+      ? "Moderate"
+      : "High";
   const summary = {
     totalFilesScanned: req.files.length,
     totalVulnerabilities,
@@ -194,6 +219,95 @@ router.post("/", verifyAccessToken, upload.array("files"), async (req, res) => {
   } catch (err) {
     console.error("Error saving code assessment:", err);
     return res.status(500).json({ message: "Error saving code assessment." });
+  }
+});
+
+const axios = require("axios");
+const os = require("os");
+
+router.post("/github", verifyAccessToken, async (req, res) => {
+  const { repoUrl } = req.body;
+  if (!repoUrl || !repoUrl.startsWith("https://github.com/")) {
+    return res.status(400).json({ error: "Invalid GitHub URL" });
+  }
+
+  try {
+    // Convert repo URL to ZIP download link
+    let zipUrl = repoUrl;
+    if (zipUrl.endsWith("/")) zipUrl = zipUrl.slice(0, -1);
+    if (zipUrl.endsWith(".git")) zipUrl = zipUrl.slice(0, -4);
+    zipUrl += "/archive/refs/heads/main.zip";
+
+    const tmpZipPath = path.join(os.tmpdir(), `repo-${Date.now()}.zip`);
+    const writer = fs.createWriteStream(tmpZipPath);
+
+    // Download ZIP
+    const response = await axios({
+      url: zipUrl,
+      method: "GET",
+      responseType: "stream",
+    });
+
+    await new Promise((resolve, reject) => {
+      response.data.pipe(writer);
+      writer.on("finish", resolve);
+      writer.on("error", reject);
+    });
+
+    // Extract and scan
+    const extractPath = tmpZipPath.replace(".zip", "");
+    await extractZip(tmpZipPath, extractPath);
+
+    const pythonFiles = findPythonFiles(extractPath);
+    console.log(`📁 Found ${pythonFiles.length} Python files in GitHub repo`);
+
+    let scanResults = [];
+    if (pythonFiles.length > 0) {
+      const results = await Promise.all(pythonFiles.map(runBanditPythonScript));
+      scanResults.push(...results);
+    }
+
+    fs.rmSync(tmpZipPath, { force: true });
+    fs.rmSync(extractPath, { recursive: true, force: true });
+
+    const totalVulnerabilities = scanResults.reduce((acc, result) => {
+      return acc + (Array.isArray(result.issues) ? result.issues.length : 0);
+    }, 0);
+
+    const riskLevel =
+      totalVulnerabilities === 0
+        ? "Low"
+        : totalVulnerabilities < 5
+        ? "Moderate"
+        : "High";
+
+    const summary = {
+      totalFilesScanned: pythonFiles.length,
+      totalVulnerabilities,
+      riskLevel,
+    };
+
+    const assessment = new Assessment({
+      user: req.user.id,
+      type: "code",
+      data: {
+        vulnerabilities: scanResults,
+        summary,
+        repo: repoUrl,
+      },
+    });
+
+    const savedAssessment = await assessment.save();
+
+    return res.status(200).json({
+      message: "GitHub repo scanned successfully.",
+      assessmentId: savedAssessment._id,
+      summary,
+      results: scanResults,
+    });
+  } catch (err) {
+    console.error("❌ GitHub scan failed:", err.message);
+    return res.status(500).json({ error: "Failed to scan GitHub repo." });
   }
 });
 

@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Button, Typography, Box, CircularProgress, Paper, Container } from "@mui/material";
+import {
+  Button,
+  Typography,
+  Box,
+  CircularProgress,
+  Paper,
+  Container,
+  TextField,
+} from "@mui/material";
 import styled from "styled-components";
 import UploadIcon from "@mui/icons-material/Upload";
 import axios from "axios";
@@ -27,6 +35,7 @@ const UploadSection = styled(Box)`
 
 const UploadForm = () => {
   const [selectedFiles, setSelectedFiles] = useState(null);
+  const [repoUrl, setRepoUrl] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -45,35 +54,55 @@ const UploadForm = () => {
 
   const handleUpload = async (event) => {
     event.preventDefault();
-    if (!selectedFiles) {
-      setError("Please select files to upload.");
-      return;
-    }
-
-    setLoading(true);
     setError(null);
+    setResult(null);
+    setLoading(true);
 
-    const formData = new FormData();
-    for (let i = 0; i < selectedFiles.length; i++) {
-      formData.append("files", selectedFiles[i]);
-    }
+    const token = localStorage.getItem("token");
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await axios.post("http://localhost:5000/api/scan", formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "x-csrf-token": csrfToken,
-          "Content-Type": "multipart/form-data",
-        },
-        withCredentials: true,
-      });
+      if (repoUrl) {
+        // GitHub URL mode
+        const response = await axios.post(
+          "http://localhost:5000/api/scan/github",
+          { repoUrl },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "x-csrf-token": csrfToken,
+              "Content-Type": "application/json",
+            },
+            withCredentials: true,
+          }
+        );
+        setResult(response.data);
+      } else if (selectedFiles) {
+        // File upload mode
+        const formData = new FormData();
+        for (let i = 0; i < selectedFiles.length; i++) {
+          formData.append("files", selectedFiles[i]);
+        }
 
-      setResult(response.data);
-      setLoading(false);
+        const response = await axios.post(
+          "http://localhost:5000/api/scan",
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "x-csrf-token": csrfToken,
+              "Content-Type": "multipart/form-data",
+            },
+            withCredentials: true,
+          }
+        );
+        setResult(response.data);
+      } else {
+        setError("Please provide a GitHub repo URL or upload files.");
+      }
     } catch (err) {
-      console.error("Upload Error:", err);
-      setError("File upload failed. Check the console for details.");
+      console.error("Scan Error:", err);
+      setError("Scan failed. See console for details.");
+    } finally {
       setLoading(false);
     }
   };
@@ -81,11 +110,29 @@ const UploadForm = () => {
   return (
     <AssessmentContainer>
       <FormBox>
-        <Typography variant="h6" align="center" style={{ marginBottom: "1rem", color: "#cccccc" }}>
-          Upload your Python code to analyze security vulnerabilities.
+        <Typography
+          variant="h6"
+          align="center"
+          style={{ marginBottom: "1rem", color: "#cccccc" }}
+        >
+          Upload Python code or provide a GitHub repo URL to scan for
+          vulnerabilities.
         </Typography>
 
         <form onSubmit={handleUpload}>
+          <TextField
+            fullWidth
+            label="GitHub Repository URL"
+            variant="outlined"
+            value={repoUrl}
+            onChange={(e) => setRepoUrl(e.target.value)}
+            sx={{
+              backgroundColor: "#ffffff",
+              marginBottom: "1.5rem",
+              borderRadius: "4px",
+            }}
+          />
+
           <UploadSection>
             <Button
               variant="contained"
@@ -99,11 +146,20 @@ const UploadForm = () => {
               }}
             >
               {selectedFiles ? "Change Files" : "Upload Files"}
-              <input type="file" multiple hidden onChange={handleFileChange} accept=".py, .zip" />
+              <input
+                type="file"
+                multiple
+                hidden
+                onChange={handleFileChange}
+                accept=".py, .zip"
+              />
             </Button>
             {selectedFiles && (
               <Typography variant="body1" sx={{ marginTop: "1rem" }}>
-                Selected Files: {Array.from(selectedFiles).map((file) => file.name).join(", ")}
+                Selected Files:{" "}
+                {Array.from(selectedFiles)
+                  .map((file) => file.name)
+                  .join(", ")}
               </Typography>
             )}
           </UploadSection>
@@ -120,7 +176,7 @@ const UploadForm = () => {
               }}
               disabled={loading}
             >
-              {loading ? <CircularProgress size={24} /> : "Upload & Scan"}
+              {loading ? <CircularProgress size={24} /> : "Scan Now"}
             </Button>
           </Box>
         </form>
@@ -133,16 +189,30 @@ const UploadForm = () => {
 
         {result && (
           <Box mt={3}>
-            <Typography variant="h5" style={{ color: "#00bcd4", fontWeight: "bold", marginBottom: "1rem" }}>
+            <Typography
+              variant="h5"
+              style={{
+                color: "#00bcd4",
+                fontWeight: "bold",
+                marginBottom: "1rem",
+              }}
+            >
               Scan Results:
             </Typography>
             {result.results.map((fileResult, index) => (
               <Paper
                 key={index}
                 elevation={3}
-                style={{ padding: "1rem", margin: "1rem 0", backgroundColor: "#2a2a2a" }}
+                style={{
+                  padding: "1rem",
+                  margin: "1rem 0",
+                  backgroundColor: "#2a2a2a",
+                }}
               >
-                <Typography variant="h6" style={{ color: "#00bcd4", fontWeight: "bold" }}>
+                <Typography
+                  variant="h6"
+                  style={{ color: "#00bcd4", fontWeight: "bold" }}
+                >
                   📂 File: {fileResult.file}
                 </Typography>
                 {Array.isArray(fileResult.issues) ? (
@@ -162,7 +232,8 @@ const UploadForm = () => {
                         🔴 <strong>Issue:</strong> {issue.issue_text}
                       </Typography>
                       <Typography style={{ color: "#ffffff" }}>
-                        ⚠️ <strong>Severity:</strong> {issue.issue_severity} | 🔍 <strong>Confidence:</strong> {issue.issue_confidence}
+                        ⚠️ <strong>Severity:</strong> {issue.issue_severity} |
+                        🔍 <strong>Confidence:</strong> {issue.issue_confidence}
                       </Typography>
                       <Typography style={{ color: "#ffffff" }}>
                         📌 <strong>Line:</strong> {issue.line_number}
