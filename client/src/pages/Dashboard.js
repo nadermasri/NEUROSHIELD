@@ -28,7 +28,7 @@ const NavCard = styled(Card)`
   overflow: hidden;
   transition: transform 0.3s, box-shadow 0.3s;
   max-width: 280px; /* Limit the card width */
-  height: 350px;    /* Fixed card height */
+  height: 400px;    /* Fixed card height */
   display: flex;
   flex-direction: column;
   &:hover {
