@@ -101,8 +101,6 @@
 ├── generate_tree.py
 ├── ml_service
 │   ├── .gitignore
-│   ├── adversarial_images.zip
-│   ├── adversarial_report.pdf
 │   ├── app.py
 │   ├── imagenet_classes.txt
 │   ├── requirements.txt

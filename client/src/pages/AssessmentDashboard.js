@@ -424,7 +424,9 @@ const AssessmentDashboard = () => {
   const filteredAssessments = assessments.filter((assessment) => {
     if (tabValue === 0) return true;
     if (tabValue === 1) return assessment.type.toLowerCase() === "vulnerability";
-    if (tabValue === 2) return assessment.type.toLowerCase() === "deployed";
+    if (tabValue === 2)
+      // Updated condition: include both 'deployed' and 'adversarial' assessments for the Attack Assessment tab
+      return ["deployed", "adversarial"].includes(assessment.type.toLowerCase());
     if (tabValue === 3) return assessment.type.toLowerCase() === "code";
     if (tabValue === 4) return assessment.type.toLowerCase() === "compliance";
     return true;
