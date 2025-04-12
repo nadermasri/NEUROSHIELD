@@ -50,6 +50,7 @@
 │   │   │       ├── compliance.png
 │   │   │       ├── dashboard.png
 │   │   │       ├── data.png
+│   │   │       ├── history.png
 │   │   │       └── model.png
 │   │   ├── favicon.ico
 │   │   ├── index.html
@@ -77,6 +78,7 @@
 │   │   │   ├── AdminDashboard.js
 │   │   │   ├── AdminLogin.js
 │   │   │   ├── AdversarialAttackSimulation.js
+│   │   │   ├── AnalysisDashboard.js
 │   │   │   ├── AssessmentDashboard.js
 │   │   │   ├── CodeAssessment.js
 │   │   │   ├── ComplianceAssessment.js
@@ -112,6 +114,7 @@
     ├── .dccache
     ├── .gitignore
     ├── controllers
+    │   ├── analysisController.js
     │   ├── assessmentController.js
     │   ├── authController.js
     │   ├── complianceController.js
@@ -132,6 +135,7 @@
     ├── routes
     │   ├── admin.js
     │   ├── adminContacts.js
+    │   ├── analysis.js
     │   ├── assessment.js
     │   ├── auth.js
     │   ├── compliance.js

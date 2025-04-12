@@ -20,7 +20,7 @@ import AdversarialAttackSimulation from './pages/AdversarialAttackSimulation';
 import CodeAssessment from './pages/CodeAssessment';
 import AssessmentDashboard from './pages/AssessmentDashboard';
 import ComplianceAssessment from './pages/ComplianceAssessment';
-
+import AnalysisDashboard from './pages/AnalysisDashboard';
 function App() {
   return (
     <>
@@ -43,6 +43,8 @@ function App() {
         <Route path="/Vulncode-assessment" element={<CodeAssessment />} />
         <Route path="/assessment-dashboard" element={<AssessmentDashboard />} />
         <Route path="/compliance-assessment" element={<ComplianceAssessment />} />
+        <Route path="/analysis-dashboard" element={<AnalysisDashboard />} />
+
       </Routes>
       <Footer />
     </>

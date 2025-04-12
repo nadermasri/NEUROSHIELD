@@ -5,12 +5,14 @@ import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 
-// Dashboard container with a dark gradient background and padding
+// Dashboard container with a dark gradient background and maximum width
 const DashboardContainer = styled(Container)`
-  padding: 4rem;
+  padding: 3rem 1rem; /* Slightly less padding to fit more cards horizontally */
   background: linear-gradient(135deg, #1e1e1e, #333);
   min-height: 100vh;
   color: #ffffff;
+  max-width: 1200px;
+  margin: 0 auto;
 `;
 
 // Header for welcome message
@@ -19,14 +21,14 @@ const Header = styled.div`
   margin-bottom: 3rem;
 `;
 
-// Styled NavCard with rounded corners, overflow hidden, and enhanced hover effects
+// Card with a fixed height and a max-width to prevent it from stretching too wide
 const NavCard = styled(Card)`
   background-color: #1a1a1a;
-  margin: 0rem;
   border-radius: 15px;
   overflow: hidden;
   transition: transform 0.3s, box-shadow 0.3s;
-  height: 450px;
+  max-width: 280px; /* Limit the card width */
+  height: 350px;    /* Fixed card height */
   display: flex;
   flex-direction: column;
   &:hover {
@@ -35,13 +37,13 @@ const NavCard = styled(Card)`
   }
 `;
 
-// Card media with increased height and object-fit cover
+// Card media with reduced height for a balanced layout
 const NavCardMedia = styled(CardMedia)`
-  height: 220px;
+  height: 180px;
   object-fit: cover;
 `;
 
-// Card content styled as a flex container with two fixed-height sections
+// Card content styled as a flex container for vertical layout
 const NavCardContent = styled(CardContent)`
   flex-grow: 1;
   display: flex;
@@ -50,35 +52,31 @@ const NavCardContent = styled(CardContent)`
   padding: 1rem;
 `;
 
-// Container for the top text (title and description)
 const TextContainer = styled.div`
-  min-height: 100px;
-  max-height: 120px;
+  min-height: 80px; 
+  max-height: 100px;
   overflow: auto;
 `;
 
-// Container for the details with a fixed height and top border divider
 const DetailContainer = styled.div`
-  min-height: 120px;
-  max-height: 120px;
+  min-height: 80px;
+  max-height: 80px;
   border-top: 1px solid #424242;
   padding-top: 0.5rem;
   overflow: auto;
 `;
 
-// Title styling for the card
+// Title and text styles
 const Title = styled(Typography)`
   color: #00bcd4;
   font-weight: bold;
   margin-bottom: 0.5rem;
 `;
 
-// Description styling for the card
 const Description = styled(Typography)`
   color: #ffffff;
 `;
 
-// Detail text styling (inside the detail container)
 const DetailText = styled(Typography)`
   color: #b0bec5;
   font-style: italic;
@@ -86,42 +84,49 @@ const DetailText = styled(Typography)`
 `;
 
 const TesterDashboard = () => {
-  // Updated navigation options
+  // Navigation options for the tester dashboard
   const navOptions = [
     {
       title: 'Framework Vulnerability Assessment',
       description: 'Assess your AI model frameworks for potential vulnerabilities.',
-      detail: 'This tool cross-references your framework versions against known vulnerabilities, providing risk scores and mitigation tips.',
+      detail: 'Cross-reference your framework versions against known vulnerabilities to receive risk scores and mitigation tips.',
       image: '/assets/offerings/model.png',
       link: '/framework-assessment'
     },
     {
       title: 'Code Assessment',
       description: 'Upload your code for security analysis.',
-      detail: 'Scan your source code with advanced static analysis tools to uncover potential security issues and best practices violations.',
+      detail: 'Scan your source code with advanced static analysis tools to uncover potential issues.',
       image: '/assets/offerings/data.png',
       link: '/Vulncode-assessment'
     },
     {
       title: 'Adversarial Attack Simulation',
       description: 'Simulate adversarial attacks on your AI models.',
-      detail: 'Evaluate the resilience of your models by simulating adversarial attacks and analyzing the results.',
+      detail: 'Evaluate the resilience of your models by simulating attacks and reviewing the results.',
       image: '/assets/offerings/attack.png',
       link: '/adversarial-attack-simulation'
     },
     {
-      title: 'Assessment Dashboard',
-      description: 'View detailed metrics and recommendations.',
-      detail: 'Access interactive charts, detailed reports, and tailored remediation strategies in one centralized dashboard.',
-      image: '/assets/offerings/dashboard.png',
+      title: 'Compliance & Regulation Assessment',
+      description: 'Check your compliance against AI regulatory frameworks.',
+      detail: 'Evaluate your organization’s compliance with guidelines like NIST AI RMF and NIST SP 800-226.',
+      image: '/assets/offerings/compliance.png',
+      link: '/compliance-assessment'
+    },
+    {
+      title: 'Assessment History',
+      description: 'View past assessments and details.',
+      detail: 'Access your historical assessment data, including scores, trends, and detailed reports.',
+      image: '/assets/offerings/history.png',
       link: '/assessment-dashboard'
     },
     {
-      title: 'Compliance & Regulation Assessment',
-      description: 'Check your compliance against AI regulatory frameworks.',
-      detail: 'Evaluate your organization’s compliance with guidelines such as NIST AI RMF and NIST SP 800-226, then receive actionable recommendations.',
-      image: '/assets/offerings/compliance.png',
-      link: '/compliance-assessment'
+      title: 'Analysis & Dashboard',
+      description: 'View historical score trends and recommendations.',
+      detail: 'Access interactive charts, detailed reports, and tailored remediation strategies.',
+      image: '/assets/offerings/dashboard.png',
+      link: '/analysis-dashboard'
     }
   ];
 
@@ -135,9 +140,14 @@ const TesterDashboard = () => {
           Welcome! Select an option below to start your security and compliance assessments.
         </Typography>
       </Header>
-      <Grid container spacing={4} justifyContent="center">
+
+      {/* 
+        Using auto-sizing Grid items instead of fixed breakpoints
+        so they will wrap and center nicely based on maxWidth of each card.
+      */}
+      <Grid container spacing={4} justifyContent="center" wrap="wrap">
         {navOptions.map((option, index) => (
-          <Grid item xs={12} sm={6} md={3} key={index}>
+          <Grid item key={index}>
             <motion.div whileHover={{ scale: 1.05 }}>
               <CardActionArea component={Link} to={option.link}>
                 <NavCard>

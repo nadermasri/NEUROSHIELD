@@ -18,8 +18,8 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 
 const StyledAppBar = styled(AppBar)`
-  background: linear-gradient(90deg, #1a1a1a, #333333);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(90deg, #1a1a1a, #333333) !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
 `;
 
 const Brand = styled.div`
@@ -51,7 +51,6 @@ const NavLinks = styled.div`
   }
 `;
 
-// Updated AccountButtons with gap property for spacing between buttons
 const AccountButtons = styled.div`
   display: flex;
   align-items: center;
@@ -70,8 +69,6 @@ const Navbar = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const token = localStorage.getItem('token');
   const role = localStorage.getItem('role');
-  
-  // useMediaQuery to check if the screen is mobile size (<= 768px)
   const isMobile = useMediaQuery('(max-width:768px)');
 
   const handleLogout = () => {
@@ -87,7 +84,6 @@ const Navbar = () => {
     setDrawerOpen(open);
   };
 
-  // Define common navigation items (removed Adversarial Attack)
   const navItems = [
     { label: 'Home', to: '/' },
     { label: 'About Us', to: '/about' },
@@ -95,7 +91,6 @@ const Navbar = () => {
     { label: 'Contact Us', to: '/contact' }
   ];
 
-  // Define account items based on authentication status
   const accountItems = token
     ? role === 'tester'
       ? [
@@ -115,7 +110,6 @@ const Navbar = () => {
         { label: 'Admin Login', to: '/admin-login' },
       ];
 
-  // Combine items for mobile drawer
   const drawerItems = [...navItems, ...accountItems];
 
   return (

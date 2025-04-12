@@ -267,6 +267,7 @@ app.use("/api/contact", contactRoutes);
 app.use("/api/vulnerabilities", vulnerabilityRoutes); // Integrated vulnerability API
 app.use("/api/scan", scanRoute);
 app.use("/api/compliance", require("./routes/compliance"));
+app.use("/api/analysis", require("./routes/analysis"));
 
 // Serve static files from uploads folder
 app.use(
@@ -1100,6 +1101,124 @@ exports.logout = async (req, res) => {
 };
 
 
+--- ./server/controllers/analysisController.js ---
+// server/controllers/analysisController.js
+const Assessment = require('../models/Assessment');
+
+exports.getAnalysisData = async (req, res) => {
+  try {
+    // Get all assessments for the logged-in user sorted by creation date
+    const userAssessments = await Assessment.find({ user: req.user.id }).sort({ createdAt: 1 });
+    
+    // If no assessments exist, return default values
+    if (userAssessments.length === 0) {
+      return res.json({
+        scoreData: { code: 0, compliance: 0, vulnerability: 0, attack: 0 },
+        trendData: [],
+        recommendations: ["No assessments found. Please complete an assessment to see your analysis."]
+      });
+    }
+
+    // Accumulators for different assessment types
+    let codeTotal = 0, codeCount = 0;
+    let complianceTotal = 0, complianceCount = 0;
+    let vulnerabilityTotal = 0, vulnerabilityCount = 0;
+    let attackTotal = 0, attackCount = 0;
+
+    // For trend data, create an array of objects for each assessment date
+    let trendData = [];
+    
+    userAssessments.forEach(assessment => {
+      const day = assessment.createdAt.toISOString().slice(0,10); // e.g., "2025-04-12"
+
+      // For Code assessments, use the averageSeverity (if available) transformed to a score
+      if (assessment.type.toLowerCase() === "code") {
+        if (assessment.data && assessment.data.summary && assessment.data.summary.averageSeverity) {
+          const avgSeverity = parseFloat(assessment.data.summary.averageSeverity);
+          // Transform: lower severity yields a higher score. If severity can be up to 3, do:
+          const score = Math.max(0, Math.round(100 - ((avgSeverity / 3) * 100)));
+          codeTotal += score;
+          codeCount++;
+          trendData.push({ day, code: score });
+        }
+      }
+      // For Compliance assessments, use the numeric score stored in assessment.data.score
+      else if (assessment.type.toLowerCase() === "compliance") {
+        if (assessment.data && assessment.score != null) {
+          const score = parseFloat(assessment.score);
+          complianceTotal += score;
+          complianceCount++;
+          trendData.push({ day, compliance: score });
+        }
+      }
+      // For Vulnerability assessments, assume assessment.data.summary.risk_score exists.
+      // Here, a lower risk score means better security. We invert it: score = 100 - (risk_score * factor)
+      else if (assessment.type.toLowerCase() === "vulnerability") {
+        if (assessment.data && assessment.data.summary && assessment.data.summary.risk_score) {
+          const riskScore = parseFloat(assessment.data.summary.risk_score);
+          // Use a factor (e.g., multiply risk score by 5) to transform into percentage
+          const score = Math.max(0, 100 - riskScore * 5);
+          vulnerabilityTotal += score;
+          vulnerabilityCount++;
+          trendData.push({ day, vulnerability: score });
+        }
+      }
+      // For Adversarial assessments, if simulationData.successRate exists (between 0 and 1, where lower is better)
+      else if (assessment.type.toLowerCase() === "adversarial") {
+        if (assessment.data && assessment.data.simulationData && assessment.data.simulationData.successRate != null) {
+          const successRate = parseFloat(assessment.data.simulationData.successRate);
+          const score = Math.max(0, 100 - (successRate * 100)); // higher success rate means lower score
+          attackTotal += score;
+          attackCount++;
+          trendData.push({ day, attack: score });
+        }
+      }
+    });
+
+    // Compute average scores by type
+    const averageCode = codeCount > 0 ? Math.round(codeTotal / codeCount) : 0;
+    const averageCompliance = complianceCount > 0 ? Math.round(complianceTotal / complianceCount) : 0;
+    const averageVulnerability = vulnerabilityCount > 0 ? Math.round(vulnerabilityTotal / vulnerabilityCount) : 0;
+    const averageAttack = attackCount > 0 ? Math.round(attackTotal / attackCount) : 0;
+    
+    const scoreData = {
+      code: averageCode,
+      compliance: averageCompliance,
+      vulnerability: averageVulnerability,
+      attack: averageAttack
+    };
+
+    // Merge trendData for dates (if there are multiple entries for a day, combine them)
+    const trendMap = {};
+    trendData.forEach(obj => {
+      const day = obj.day;
+      if (!trendMap[day]) trendMap[day] = { day };
+      if (obj.code != null) trendMap[day].code = obj.code;
+      if (obj.compliance != null) trendMap[day].compliance = obj.compliance;
+      if (obj.vulnerability != null) trendMap[day].vulnerability = obj.vulnerability;
+      if (obj.attack != null) trendMap[day].attack = obj.attack;
+    });
+    const mergedTrendData = Object.values(trendMap).sort((a, b) => new Date(a.day) - new Date(b.day));
+
+    // Build recommendations based on scores
+    let recommendations = [];
+    if (averageCode < 60) recommendations.push("Improve code security via regular audits and updated Snyk scans.");
+    if (averageCompliance < 70) recommendations.push("Review and update compliance policies.");
+    if (averageVulnerability < 60) recommendations.push("Address identified vulnerabilities immediately.");
+    if (averageAttack < 50) recommendations.push("Enhance model robustness against adversarial attacks.");
+
+    return res.json({
+      scoreData,
+      trendData: mergedTrendData,
+      recommendations
+    });
+  } catch (err) {
+    console.error("Error in analysisController:", err);
+    res.status(500).json({ error: "Failed to compute analysis data." });
+  }
+};
+
+
 --- ./server/routes/user.js ---
 // server/routes/user.js
 const express = require('express');
@@ -1201,6 +1320,18 @@ const { getQuestions, submitComplianceAssessment } = require('../controllers/com
 
 router.get('/questions', verifyAccessToken, getQuestions);
 router.post('/', verifyAccessToken, submitComplianceAssessment);
+
+module.exports = router;
+
+
+--- ./server/routes/analysis.js ---
+// server/routes/analysis.js
+const express = require('express');
+const router = express.Router();
+const { verifyAccessToken } = require('../middleware/authMiddleware');
+const { getAnalysisData } = require('../controllers/analysisController');
+
+router.get('/', verifyAccessToken, getAnalysisData);
 
 module.exports = router;
 
@@ -1634,19 +1765,19 @@ module.exports = router;
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "@emotion/react": "^11.10.6",
-    "@emotion/styled": "^11.10.6",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^5.11.16",
-    "@mui/material": "^5.11.16",
+    "@mui/material": "^7.0.2",
     "axios": "^1.7.9",
     "framer-motion": "^10.12.16",
-    "jspdf": "^3.0.0",
+    "jspdf": "^3.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-parallax-tilt": "^1.7.22",
     "react-router-dom": "^6.14.2",
     "react-scripts": "^5.0.1",
-    "recharts": "^2.15.1",
+    "recharts": "^2.15.2",
     "styled-components": "^5.3.10"
   },
   "scripts": {
@@ -1884,7 +2015,7 @@ import AdversarialAttackSimulation from './pages/AdversarialAttackSimulation';
 import CodeAssessment from './pages/CodeAssessment';
 import AssessmentDashboard from './pages/AssessmentDashboard';
 import ComplianceAssessment from './pages/ComplianceAssessment';
-
+import AnalysisDashboard from './pages/AnalysisDashboard';
 function App() {
   return (
     <>
@@ -1907,6 +2038,8 @@ function App() {
         <Route path="/Vulncode-assessment" element={<CodeAssessment />} />
         <Route path="/assessment-dashboard" element={<AssessmentDashboard />} />
         <Route path="/compliance-assessment" element={<ComplianceAssessment />} />
+        <Route path="/analysis-dashboard" element={<AnalysisDashboard />} />
+
       </Routes>
       <Footer />
     </>
@@ -2660,12 +2793,22 @@ export default Profile;
 --- ./client/src/pages/About.js ---
 // client/src/pages/About.js
 import React from 'react';
-import { Container, Typography, Accordion, AccordionSummary, AccordionDetails, Grid, Card, CardContent, CardMedia } from '@mui/material';
+import { Container, Typography, Accordion, AccordionSummary, AccordionDetails, Grid, Card, CardContent, CardMedia, Box } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import styled from 'styled-components';
 
 const AboutContainer = styled(Container)`
   padding: 4rem;
+`;
+
+const SectionTitle = styled(Typography)`
+  color: #00bcd4;
+  font-weight: bold;
+  margin-bottom: 1rem;
+`;
+
+const SectionContent = styled(Typography)`
+  margin-bottom: 0.5rem;
 `;
 
 const FoundersSection = styled(Container)`
@@ -2707,45 +2850,91 @@ const About = () => {
       <Typography variant="h3" align="center" style={{ color: '#00bcd4', fontWeight: 'bold', marginBottom: '2rem' }}>
         About NeuroShield
       </Typography>
-      {/* Project Details Accordions */}
+
+      {/* Project Information Accordions */}
       <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff', marginBottom: '1rem' }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
-          <Typography style={{ color: '#00bcd4', fontWeight: 'bold' }}>Scope of the Project</Typography>
+          <SectionTitle variant="h6">Scope of the Project</SectionTitle>
         </AccordionSummary>
         <AccordionDetails>
-          <Typography variant="body2">
-            NeuroShield is designed to detect vulnerabilities across the AI lifecycle—ensuring the integrity of training data, safeguarding model code, and evaluating deployed systems against real-world attacks.
-          </Typography>
+          <SectionContent variant="body2">
+            NeuroShield is designed to detect vulnerabilities across the entire AI lifecycle. It rigorously evaluates training data, secures model code, and assesses deployed systems against real-world attacks to ensure reliable and safe AI solutions.
+          </SectionContent>
         </AccordionDetails>
       </Accordion>
+
       <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff', marginBottom: '1rem' }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
-          <Typography style={{ color: '#00bcd4', fontWeight: 'bold' }}>Problem Origin</Typography>
+          <SectionTitle variant="h6">Problem Origin</SectionTitle>
         </AccordionSummary>
         <AccordionDetails>
-          <Typography variant="body2">
-            With AI systems deployed in sensitive domains such as healthcare and finance, adversaries have exposed gaps in traditional security frameworks. NeuroShield was born from the need to counteract these evolving threats.
-          </Typography>
+          <SectionContent variant="body2">
+            As AI systems infiltrate critical domains—such as healthcare, finance, and autonomous driving—traditional security frameworks have struggled to keep pace with emerging threats. NeuroShield was conceived to address these vulnerabilities and fill the gaps in AI security.
+          </SectionContent>
         </AccordionDetails>
       </Accordion>
+
       <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff', marginBottom: '1rem' }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
-          <Typography style={{ color: '#00bcd4', fontWeight: 'bold' }}>Nature & Significance</Typography>
+          <SectionTitle variant="h6">Nature & Significance</SectionTitle>
         </AccordionSummary>
         <AccordionDetails>
-          <Typography variant="body2">
-            The reliability of AI depends on secure data and robust models. NeuroShield identifies potential vulnerabilities and guides you in implementing effective mitigation strategies, ensuring trustworthy AI systems.
-          </Typography>
+          <SectionContent variant="body2">
+            The trustworthiness of AI systems depends on robust security measures. NeuroShield not only detects potential vulnerabilities but also provides actionable recommendations, thus ensuring that AI deployments are both resilient and compliant with industry standards.
+          </SectionContent>
         </AccordionDetails>
       </Accordion>
-      <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff' }}>
+
+      <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff', marginBottom: '1rem' }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
-          <Typography style={{ color: '#00bcd4', fontWeight: 'bold' }}>Motivation & Deliverables</Typography>
+          <SectionTitle variant="h6">Vision & Mission</SectionTitle>
         </AccordionSummary>
         <AccordionDetails>
-          <Typography variant="body2">
-            Driven by the need to protect critical AI deployments, our deliverables include a full-fledged vulnerability detection tool, detailed documentation, source code repository, API integration, and a demo video.
-          </Typography>
+          <SectionContent variant="body2">
+            Our vision is to establish a new paradigm for AI security—one where vulnerabilities are proactively identified and mitigated before they can be exploited. Our mission is to empower organizations with cutting-edge tools that ensure the safe and ethical deployment of AI technologies.
+          </SectionContent>
+        </AccordionDetails>
+      </Accordion>
+
+      <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff', marginBottom: '1rem' }}>
+        <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
+          <SectionTitle variant="h6">Technology & Architecture</SectionTitle>
+        </AccordionSummary>
+        <AccordionDetails>
+          <SectionContent variant="body2">
+            NeuroShield leverages a microservices architecture combining Node.js and Express for backend APIs, MongoDB for data storage, and auxiliary services built in Python (such as Bandit security scans and adversarial simulation scripts). It integrates seamlessly with modern frontend frameworks to deliver real-time risk assessments via a user-friendly dashboard.
+          </SectionContent>
+          <SectionContent variant="body2">
+            The system processes code, deployed models, and compliance questionnaires using advanced algorithms and machine learning techniques, ensuring both accuracy and efficiency in vulnerability detection.
+          </SectionContent>
+        </AccordionDetails>
+      </Accordion>
+
+      <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff', marginBottom: '1rem' }}>
+        <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
+          <SectionTitle variant="h6">Security & Compliance</SectionTitle>
+        </AccordionSummary>
+        <AccordionDetails>
+          <SectionContent variant="body2">
+            NeuroShield is built with security at its core. It deploys multiple layers of protection including static code analysis, dynamic simulation of adversarial attacks, and in-depth compliance assessments against standards such as NIST AI RMF and NIST DP SP 800.
+          </SectionContent>
+          <SectionContent variant="body2">
+            This rigorous approach not only reinforces data integrity and system resilience but also helps organizations adhere to regulatory requirements and industry best practices.
+          </SectionContent>
+        </AccordionDetails>
+      </Accordion>
+
+      <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff', marginBottom: '1rem' }}>
+        <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
+          <SectionTitle variant="h6">Community & Future Directions</SectionTitle>
+        </AccordionSummary>
+        <AccordionDetails>
+          <SectionContent variant="body2">
+            Beyond being a cutting-edge security toolkit, NeuroShield is a community-driven project. We actively encourage contributions from developers and security experts to further enhance and evolve the platform.
+          </SectionContent>
+          <SectionContent variant="body2">
+            Upcoming features include real-time threat intelligence, expanded support for additional frameworks, and enhanced integration capabilities with cloud-based deployments. Join us in our journey to redefine AI security.
+          </SectionContent>
         </AccordionDetails>
       </Accordion>
 
@@ -2769,6 +2958,13 @@ const About = () => {
           ))}
         </Grid>
       </FoundersSection>
+      
+      {/* Additional Information Footer */}
+      <Box mt={4} textAlign="center">
+        <Typography variant="body2" style={{ color: '#aaa' }}>
+          NeuroShield © {new Date().getFullYear()}. Empowering secure AI for a better future.
+        </Typography>
+      </Box>
     </AboutContainer>
   );
 };
@@ -2779,12 +2975,22 @@ export default About;
 --- ./client/src/pages/LearnMore.js ---
 // client/src/pages/LearnMore.js
 import React from 'react';
-import { Container, Typography, Accordion, AccordionSummary, AccordionDetails, List, ListItem, ListItemText } from '@mui/material';
+import { Container, Typography, Accordion, AccordionSummary, AccordionDetails, List, ListItem, ListItemText, Box } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import styled from 'styled-components';
 
 const LearnMoreContainer = styled(Container)`
   padding: 4rem;
+`;
+
+const SectionHeader = styled(Typography)`
+  color: #00bcd4;
+  font-weight: bold;
+  margin-bottom: 1rem;
+`;
+
+const SectionParagraph = styled(Typography)`
+  margin-bottom: 1rem;
 `;
 
 const LearnMore = () => {
@@ -2793,56 +2999,94 @@ const LearnMore = () => {
       <Typography variant="h3" align="center" style={{ color: '#00bcd4', fontWeight: 'bold', marginBottom: '2rem' }}>
         Learn More About NeuroShield
       </Typography>
+      
+      {/* Proposed Solution Methodology updated to reflect the five phases */}
       <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff', marginBottom: '1rem' }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
-          <Typography style={{ color: '#00bcd4', fontWeight: 'bold' }}>Proposed Solution Methodology</Typography>
+          <SectionHeader variant="h6">Proposed Solution Methodology</SectionHeader>
         </AccordionSummary>
         <AccordionDetails>
-          <Typography variant="body2" paragraph>
-            NeuroShield’s solution is divided into four key phases:
-          </Typography>
+          <SectionParagraph variant="body2">
+            NeuroShield’s comprehensive solution is divided into five integrated phases:
+          </SectionParagraph>
           <List>
             <ListItem>
-              <ListItemText primary="Data Assessment: Collect and clean training data, identify biases and anomalies, and detect data poisoning attempts." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
+              <ListItemText 
+                primary="Framework Vulnerability Assessment: Assess your AI model frameworks for potential vulnerabilities." 
+                secondary="Cross-reference framework versions against known vulnerabilities to assign risk scores and define mitigation tips." 
+                primaryTypographyProps={{ style: { color: '#ffffff', fontWeight: 'bold' } }}
+                secondaryTypographyProps={{ style: { color: '#ffffff' } }}
+              />
             </ListItem>
             <ListItem>
-              <ListItemText primary="Model Assessment: Evaluate your AI model’s source code and architecture for vulnerabilities using advanced tools like CodeBERT." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
+              <ListItemText 
+                primary="Code Assessment: Upload your code for security analysis." 
+                secondary="Run advanced static analysis tools to uncover hidden vulnerabilities and ensure adherence to coding best practices." 
+                primaryTypographyProps={{ style: { color: '#ffffff', fontWeight: 'bold' } }}
+                secondaryTypographyProps={{ style: { color: '#ffffff' } }}
+              />
             </ListItem>
             <ListItem>
-              <ListItemText primary="Attack Simulation: Simulate real-world adversarial attacks to stress-test model robustness and identify hidden vulnerabilities." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
+              <ListItemText 
+                primary="Adversarial Attack Simulation: Simulate adversarial attacks on your AI models." 
+                secondary="Evaluate your model’s resilience by simulating various real-world attack scenarios and analyzing their impact." 
+                primaryTypographyProps={{ style: { color: '#ffffff', fontWeight: 'bold' } }}
+                secondaryTypographyProps={{ style: { color: '#ffffff' } }}
+              />
             </ListItem>
             <ListItem>
-              <ListItemText primary="Result Dashboard & Recommendation System: Present vulnerability scores, phase-specific insights, and actionable mitigation strategies in a user-friendly dashboard." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
+              <ListItemText 
+                primary="Assessment Dashboard: View detailed metrics and recommendations." 
+                secondary="Access interactive charts and detailed reports that provide tailored remediation strategies in one centralized interface." 
+                primaryTypographyProps={{ style: { color: '#ffffff', fontWeight: 'bold' } }}
+                secondaryTypographyProps={{ style: { color: '#ffffff' } }}
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Compliance & Regulation Assessment: Check your compliance against AI regulatory frameworks." 
+                secondary="Evaluate your organization’s adherence to standards like NIST AI RMF and NIST SP 800-226 to receive actionable, compliance-specific recommendations." 
+                primaryTypographyProps={{ style: { color: '#ffffff', fontWeight: 'bold' } }}
+                secondaryTypographyProps={{ style: { color: '#ffffff' } }}
+              />
             </ListItem>
           </List>
-          <Typography variant="body2">
-            These phases work together to provide a complete security evaluation, enabling organizations to secure their AI systems against emerging threats.
-          </Typography>
         </AccordionDetails>
       </Accordion>
+
+      {/* Technical & Non-Technical Constraints */}
       <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff', marginBottom: '1rem' }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
-          <Typography style={{ color: '#00bcd4', fontWeight: 'bold' }}>Technical & Non-Technical Constraints</Typography>
+          <SectionHeader variant="h6">Technical & Non-Technical Constraints</SectionHeader>
         </AccordionSummary>
         <AccordionDetails>
-          <Typography variant="body2" paragraph>
-            <strong>Technical Constraints:</strong> High computational resources, support for diverse frameworks (TensorFlow, PyTorch, ONNX), and real-time processing capabilities are critical to our solution.
-          </Typography>
-          <Typography variant="body2">
-            <strong>Non-Technical Constraints:</strong> Compliance with industry standards (IEEE, NIST, ISO, OWASP) and regulatory requirements is essential for building trust and ensuring the solution is legally sound.
-          </Typography>
+          <SectionParagraph variant="body2" paragraph>
+            <strong>Technical Constraints:</strong> High-performance computing resources, support for diverse frameworks (such as TensorFlow, PyTorch, and ONNX), and real-time processing are essential.
+          </SectionParagraph>
+          <SectionParagraph variant="body2">
+            <strong>Non-Technical Constraints:</strong> Adherence to industry standards (IEEE, NIST, ISO, OWASP) and compliance with regulatory requirements are key to building a trusted and legally sound solution.
+          </SectionParagraph>
         </AccordionDetails>
       </Accordion>
+
+      {/* Deliverables & Additional Features */}
       <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff' }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
-          <Typography style={{ color: '#00bcd4', fontWeight: 'bold' }}>Deliverables & Additional Features</Typography>
+          <SectionHeader variant="h6">Deliverables & Additional Features</SectionHeader>
         </AccordionSummary>
         <AccordionDetails>
-          <Typography variant="body2">
-            NeuroShield delivers a fully functional vulnerability detection tool, comprehensive documentation, a GitHub repository containing the source code, API integrations for seamless deployment, and a demo video. These deliverables ensure that organizations can confidently integrate robust security measures into their AI workflows.
-          </Typography>
+          <SectionParagraph variant="body2">
+            NeuroShield delivers a fully functional vulnerability detection tool, comprehensive documentation, an open-source GitHub repository, seamless API integrations for easy deployment, and a demo video. These deliverables ensure organizations can quickly and confidently integrate robust security measures into their AI workflows.
+          </SectionParagraph>
         </AccordionDetails>
       </Accordion>
+
+      {/* Additional Footer Information */}
+      <Box mt={4} textAlign="center">
+        <Typography variant="body2" style={{ color: '#aaa' }}>
+          NeuroShield © {new Date().getFullYear()}. Pioneering the future of secure AI.
+        </Typography>
+      </Box>
     </LearnMoreContainer>
   );
 };
@@ -3051,29 +3295,204 @@ export default Terms;
 --- ./client/src/pages/AdminDashboard.js ---
 // client/src/pages/AdminDashboard.js
 import React, { useEffect, useState } from 'react';
-import { Container, Typography, Table, TableBody, TableCell, TableHead, TableRow, Paper, Box, Button } from '@mui/material';
-import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material';
+import {
+  Container,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Paper,
+  Box,
+  Button,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  useMediaQuery
+} from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import GroupIcon from '@mui/icons-material/Group';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import MessageIcon from '@mui/icons-material/Message';
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import styled from 'styled-components';
 import axios from 'axios';
 import { motion } from 'framer-motion';
+import { jsPDF } from 'jspdf';
 
+// Styled Components
+
+// Dashboard container with a subtle gradient background
 const DashboardContainer = styled(Container)`
   padding: 4rem;
+  background: linear-gradient(135deg, #0d1117 0%, #1c1e26 100%);
+  min-height: 100vh;
 `;
 
-const MessagesSection = styled(Paper)`
-  background-color: #1a1a1a;
+// Header styling with refresh icon
+const Header = styled(Box)`
+  text-align: center;
+  margin-bottom: 3rem;
+  color: #00bcd4;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+`;
+
+// Metrics section styling
+const MetricsContainer = styled(Box)`
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  gap: 1rem;
+  margin-bottom: 2rem;
+`;
+
+const MetricCard = styled(Paper)`
+  background-color: #161b22;
+  color: #00bcd4;
+  padding: 1.5rem 2rem;
+  flex: 1 1 200px;
+  text-align: center;
+  border-radius: 12px;
+  border: 2px solid #00bcd4;
+  box-shadow: 0px 4px 8px rgba(0, 188, 212, 0.4);
+  transition: transform 0.3s ease;
+  &:hover {
+    transform: translateY(-5px);
+  }
+`;
+
+const IconWrapper = styled(Box)`
+  margin-bottom: 0.5rem;
+  font-size: 2rem;
+`;
+
+// Control Bar for search and report actions
+const ControlBar = styled(Box)`
+  margin-bottom: 2rem;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+`;
+
+// Gradient Button for consistent styling
+const GradientButton = styled(Button)`
+  background: linear-gradient(45deg, #00bcd4, #00838f);
+  color: #ffffff;
+  font-weight: bold;
+  box-shadow: 0px 4px 8px rgba(0, 188, 212, 0.6);
+  &:hover {
+    background: linear-gradient(45deg, #00838f, #006064);
+  }
+`;
+
+// SectionPaper for messages and notifications
+const SectionPaper = styled(Paper)`
+  background-color: #161b22;
   color: #ffffff;
   padding: 2rem;
   margin-top: 2rem;
+  border-radius: 12px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.6);
 `;
+
+// Table header cell for consistent styling
+const TableHeaderCell = styled(TableCell)`
+  color: #00bcd4 !important;
+  font-weight: bold !important;
+  padding: 0.75rem !important;
+`;
+
+// THIS IS THE MISSING DEFINITION:
+// NotificationsSection is a styled component for the notifications panel.
+const NotificationsSection = styled(Paper)`
+  background-color: #161b22;
+  color: #ffffff;
+  padding: 1.5rem;
+  margin-top: 2rem;
+  border-radius: 12px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.6);
+`;
+
+// Tester Details Dialog styles
+const DetailsBox = styled(Box)`
+  background-color: #161b22;
+  padding: 1rem;
+  border-radius: 8px;
+  color: #ffffff;
+  margin-top: 1rem;
+`;
+
+const TesterDetailsDialog = ({ open, onClose, tester }) => {
+  const handleDownloadTesterPDF = () => {
+    const doc = new jsPDF();
+    let y = 20;
+    doc.setFontSize(16);
+    doc.text(`Tester Report`, 20, y);
+    y += 10;
+    doc.setFontSize(12);
+    doc.text(`Name: ${tester.tester.name}`, 20, y);
+    y += 7;
+    doc.text(`Email: ${tester.tester.email}`, 20, y);
+    y += 7;
+    doc.text(`Total Assessments: ${tester.assessmentCount}`, 20, y);
+    y += 7;
+    // You can add additional tester information here
+    doc.save(`tester-report-${tester.tester.name.replace(/\s+/g, '_')}.pdf`);
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle style={{ backgroundColor: '#00bcd4', color: '#fff' }}>Tester Details</DialogTitle>
+      <DialogContent dividers style={{ backgroundColor: '#161b22' }}>
+        {tester ? (
+          <DetailsBox>
+            <Typography variant="h6" gutterBottom>
+              {tester.tester.name}
+            </Typography>
+            <Typography variant="body1" gutterBottom>
+              <strong>Email:</strong> {tester.tester.email}
+            </Typography>
+            <Typography variant="body1" gutterBottom>
+              <strong>Total Assessments:</strong> {tester.assessmentCount}
+            </Typography>
+            <Typography variant="body1" gutterBottom>
+              <strong>Last Login:</strong> N/A
+            </Typography>
+            {/* Add additional tester details here */}
+          </DetailsBox>
+        ) : (
+          <Typography>No tester details available.</Typography>
+        )}
+      </DialogContent>
+      <DialogActions style={{ backgroundColor: '#00bcd4' }}>
+        <GradientButton onClick={handleDownloadTesterPDF}>Download PDF</GradientButton>
+        <GradientButton onClick={onClose} variant="outlined" style={{ borderColor: '#00bcd4', color: '#fff' }}>
+          Close
+        </GradientButton>
+      </DialogActions>
+    </Dialog>
+  );
+};
 
 const AdminDashboard = () => {
   const [testerMetrics, setTesterMetrics] = useState([]);
   const [selectedTester, setSelectedTester] = useState(null);
   const [contactMessages, setContactMessages] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [notifications, setNotifications] = useState([]);
+  const isMobile = useMediaQuery('(max-width:600px)');
 
-  // Function to fetch tester metrics
+  // Fetch tester metrics from API
   const fetchTesterMetrics = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -3087,7 +3506,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // Function to fetch contact messages (admin only)
+  // Fetch contact messages from API
   const fetchContactMessages = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -3101,42 +3520,145 @@ const AdminDashboard = () => {
     }
   };
 
+  // Dummy notifications data
+  const fetchNotifications = async () => {
+    const dummyNotifications = [
+      { id: 1, message: 'New tester registered: John Doe.' },
+      { id: 2, message: 'System maintenance scheduled for Saturday, 2 AM.' },
+      { id: 3, message: 'Monthly report is now available for download.' }
+    ];
+    setNotifications(dummyNotifications);
+  };
+
   useEffect(() => {
     fetchTesterMetrics();
     fetchContactMessages();
+    fetchNotifications();
   }, []);
+
+  // Filter tester metrics based on search term
+  const filteredTesterMetrics = testerMetrics.filter(item =>
+    item.tester.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.tester.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Summary Metrics
+  const totalTesters = testerMetrics.length;
+  const totalAssessments = testerMetrics.reduce((sum, item) => sum + item.assessmentCount, 0);
+  const averageAssessments = totalTesters > 0 ? (totalAssessments / totalTesters).toFixed(2) : 0;
+
+  // Overall Report PDF Generation
+  const handleDownloadOverallReport = () => {
+    const doc = new jsPDF();
+    let y = 20;
+    doc.setFontSize(18);
+    doc.text("Admin Dashboard Report", 20, y);
+    y += 10;
+    doc.setFontSize(12);
+    doc.text(`Total Testers: ${totalTesters}`, 20, y);
+    y += 7;
+    doc.text(`Total Assessments: ${totalAssessments}`, 20, y);
+    y += 7;
+    doc.text(`Average Assessments per Tester: ${averageAssessments}`, 20, y);
+    y += 10;
+    doc.text("Tester Details:", 20, y);
+    y += 7;
+    testerMetrics.forEach((item, idx) => {
+      const line = `${idx + 1}. ${item.tester.name} (${item.tester.email}) - Assessments: ${item.assessmentCount}`;
+      if (y > 280) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.text(line, 20, y);
+      y += 7;
+    });
+    doc.save("Admin_Dashboard_Report.pdf");
+  };
 
   return (
     <DashboardContainer>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}>
-        <Typography variant="h3" align="center" style={{ color: '#00bcd4', fontWeight: 'bold', marginBottom: '2rem' }}>
-          Admin Dashboard
-        </Typography>
-        {/* Existing Tester Metrics Table */}
-        <Paper sx={{ width: '100%', overflowX: 'auto', backgroundColor: '#1a1a1a', marginBottom: '2rem' }}>
+        <Header>
+          <Typography variant="h3">Admin Dashboard</Typography>
+          <IconButton onClick={fetchTesterMetrics} style={{ color: '#00bcd4' }}>
+            <RefreshIcon />
+          </IconButton>
+        </Header>
+
+        {/* Summary Metrics Section */}
+        <MetricsContainer>
+          <MetricCard elevation={3}>
+            <IconWrapper>
+              <GroupIcon fontSize={isMobile ? 'medium' : 'large'} />
+            </IconWrapper>
+            <Typography variant="h6">Total Testers</Typography>
+            <Typography variant="h4">{totalTesters}</Typography>
+          </MetricCard>
+          <MetricCard elevation={3}>
+            <IconWrapper>
+              <AssessmentIcon fontSize={isMobile ? 'medium' : 'large'} />
+            </IconWrapper>
+            <Typography variant="h6">Total Assessments</Typography>
+            <Typography variant="h4">{totalAssessments}</Typography>
+          </MetricCard>
+          <MetricCard elevation={3}>
+            <IconWrapper>
+              <AssessmentIcon fontSize={isMobile ? 'medium' : 'large'} />
+            </IconWrapper>
+            <Typography variant="h6">Avg Assessments/Testers</Typography>
+            <Typography variant="h4">{averageAssessments}</Typography>
+          </MetricCard>
+          <MetricCard elevation={3}>
+            <IconWrapper>
+              <MessageIcon fontSize={isMobile ? 'medium' : 'large'} />
+            </IconWrapper>
+            <Typography variant="h6">Contact Messages</Typography>
+            <Typography variant="h4">{contactMessages.length}</Typography>
+          </MetricCard>
+        </MetricsContainer>
+
+        {/* Control Bar */}
+        <ControlBar>
+          <TextField 
+            label="Search Testers"
+            variant="outlined"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            sx={{
+              backgroundColor: '#ffffff',
+              width: '300px'
+            }}
+          />
+          <GradientButton onClick={handleDownloadOverallReport}>
+            Download Overall PDF
+          </GradientButton>
+        </ControlBar>
+
+        {/* Tester Metrics Table */}
+        <Paper sx={{ width: '100%', overflowX: 'auto', backgroundColor: '#161b22', marginBottom: '2rem', borderRadius: '12px' }}>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell style={{ color: '#00bcd4', fontWeight: 'bold' }}>Tester Name</TableCell>
-                <TableCell style={{ color: '#00bcd4', fontWeight: 'bold' }}>Email</TableCell>
-                <TableCell style={{ color: '#00bcd4', fontWeight: 'bold' }}>Total Assessments</TableCell>
-                <TableCell style={{ color: '#00bcd4', fontWeight: 'bold' }}>Actions</TableCell>
+                <TableHeaderCell>Tester Name</TableHeaderCell>
+                <TableHeaderCell>Email</TableHeaderCell>
+                <TableHeaderCell>Total Assessments</TableHeaderCell>
+                <TableHeaderCell>Actions</TableHeaderCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {testerMetrics.map((item) => (
-                <TableRow key={item.tester._id}>
+              {filteredTesterMetrics.map((item) => (
+                <TableRow key={item.tester._id} sx={{ '&:hover': { backgroundColor: '#232a33' } }}>
                   <TableCell style={{ color: '#ffffff' }}>{item.tester.name}</TableCell>
                   <TableCell style={{ color: '#ffffff' }}>{item.tester.email}</TableCell>
                   <TableCell style={{ color: '#ffffff' }}>{item.assessmentCount}</TableCell>
                   <TableCell>
-                    <Button
-                      variant="contained"
-                      style={{ backgroundColor: '#00bcd4', color: '#ffffff' }}
+                    <GradientButton
                       onClick={() => setSelectedTester(item)}
+                      size="small"
+                      style={{ textTransform: 'none' }}
                     >
                       View Details
-                    </Button>
+                    </GradientButton>
                   </TableCell>
                 </TableRow>
               ))}
@@ -3144,8 +3666,8 @@ const AdminDashboard = () => {
           </Table>
         </Paper>
 
-        {/* Contact Messages Section (Admin Only) */}
-        <MessagesSection elevation={3}>
+        {/* Contact Messages Section */}
+        <SectionPaper>
           <Typography variant="h4" align="center" style={{ color: '#00bcd4', fontWeight: 'bold', marginBottom: '1rem' }}>
             Contact Messages
           </Typography>
@@ -3157,16 +3679,16 @@ const AdminDashboard = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell style={{ color: '#00bcd4', fontWeight: 'bold' }}>Name</TableCell>
-                  <TableCell style={{ color: '#00bcd4', fontWeight: 'bold' }}>Email</TableCell>
-                  <TableCell style={{ color: '#00bcd4', fontWeight: 'bold' }}>Subject</TableCell>
-                  <TableCell style={{ color: '#00bcd4', fontWeight: 'bold' }}>Message</TableCell>
-                  <TableCell style={{ color: '#00bcd4', fontWeight: 'bold' }}>Date</TableCell>
+                  <TableHeaderCell>Name</TableHeaderCell>
+                  <TableHeaderCell>Email</TableHeaderCell>
+                  <TableHeaderCell>Subject</TableHeaderCell>
+                  <TableHeaderCell>Message</TableHeaderCell>
+                  <TableHeaderCell>Date</TableHeaderCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {contactMessages.map((msg) => (
-                  <TableRow key={msg._id}>
+                  <TableRow key={msg._id} sx={{ '&:hover': { backgroundColor: '#232a33' } }}>
                     <TableCell style={{ color: '#00bcd4' }}>{msg.name}</TableCell>
                     <TableCell style={{ color: '#d3d3d3' }}>{msg.email}</TableCell>
                     <TableCell style={{ color: '#d3d3d3' }}>{msg.subject || 'N/A'}</TableCell>
@@ -3177,18 +3699,31 @@ const AdminDashboard = () => {
               </TableBody>
             </Table>
           )}
-        </MessagesSection>
+        </SectionPaper>
 
-        {/* Optional: Additional admin functionality (e.g., viewing tester details) */}
+        {/* Notifications Section */}
+        <NotificationsSection elevation={3}>
+          <Typography variant="h5" align="center" style={{ color: '#00bcd4', fontWeight: 'bold', marginBottom: '1rem' }}>
+            System Notifications
+          </Typography>
+          {notifications.length === 0 ? (
+            <Typography variant="body1">No new notifications.</Typography>
+          ) : (
+            notifications.map(notification => (
+              <Box key={notification.id} sx={{ marginBottom: '0.5rem', padding: '0.5rem', borderBottom: '1px solid #424242' }}>
+                <Typography variant="body2">{notification.message}</Typography>
+              </Box>
+            ))
+          )}
+        </NotificationsSection>
+
+        {/* Tester Details Dialog */}
         {selectedTester && (
-          <Box sx={{ marginTop: '2rem', backgroundColor: '#1a1a1a', padding: '1rem', borderRadius: '8px' }}>
-            <Typography variant="h5" style={{ color: '#00bcd4', fontWeight: 'bold', marginBottom: '1rem' }}>
-              Details for {selectedTester.tester.name}
-            </Typography>
-            <Button onClick={() => setSelectedTester(null)} variant="outlined" style={{ marginTop: '1rem', color: '#00bcd4', borderColor: '#00bcd4' }}>
-              Close Details
-            </Button>
-          </Box>
+          <TesterDetailsDialog
+            open={Boolean(selectedTester)}
+            onClose={() => setSelectedTester(null)}
+            tester={selectedTester}
+          />
         )}
       </motion.div>
     </DashboardContainer>
@@ -3259,91 +3794,167 @@ export default CodeAssessment;
 --- ./client/src/pages/Home.js ---
 // client/src/pages/Home.js
 import React from 'react';
-import { Container, Typography, Button, Grid, Card, CardContent, CardMedia, Accordion, AccordionSummary, AccordionDetails, List, ListItem, ListItemText } from '@mui/material';
+import { 
+  Container, Typography, Button, Grid, Card, CardContent, 
+  CardMedia, Accordion, AccordionSummary, AccordionDetails, 
+  List, ListItem, ListItemText, Box 
+} from '@mui/material';
 import { motion } from 'framer-motion';
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 // Styled Components
-const HeroSection = styled.div`
+
+// Hero Section with a background image overlay for dramatic effect
+const HeroSection = styled(Box)`
   text-align: center;
-  padding: 4rem 2rem;
+  padding: 6rem 2rem;
   background: linear-gradient(135deg, #00bcd4, #00838f);
   color: #ffffff;
+  background-image: url('/assets/hero-bg.jpg'); /* update image path if needed */
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0; 
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 1;
+  }
+`;
+const HeroContent = styled(Box)`
+  position: relative;
+  z-index: 2;
 `;
 
+// Offerings Section
 const OfferingsSection = styled(Container)`
-  margin-top: 3rem;
+  margin-top: 4rem;
+  padding: 2rem 0;
 `;
 
+// Consistent typography for section headers and paragraphs
+const SectionTitle = styled(Typography)`
+  color: #00bcd4;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+`;
+
+const SectionParagraph = styled(Typography)`
+  margin-bottom: 1rem;
+`;
+
+// Concern Section for key security issues
 const ConcernSection = styled(Container)`
   margin-top: 4rem;
-  padding: 2rem;
+  padding: 3rem;
   background-color: #1a1a1a;
-  border-radius: 8px;
+  border-radius: 12px;
 `;
 
+// FAQ Section with a dark background
 const FAQSection = styled(Container)`
   margin-top: 4rem;
   padding: 2rem;
   background-color: #1a1a1a;
-  border-radius: 8px;
+  border-radius: 12px;
 `;
 
-// Fixed-size card for offerings
+// Impact Section highlighting business value
+const ImpactSection = styled(Container)`
+  margin-top: 4rem;
+  padding: 4rem 2rem;
+  background-color: #263238;
+  border-radius: 12px;
+  text-align: center;
+  color: #ffffff;
+`;
+
+// Call-to-Action Section
+const CTASection = styled(Box)`
+  margin: 4rem 0;
+  text-align: center;
+`;
+
+// Offering Card with refined design and hover effects
 const OfferingCard = styled(Card)`
   background-color: #1a1a1a;
   color: #ffffff;
   margin: 1rem auto;
-  width: 300px;
-  height: 350px;
+  width: 320px;
+  height: 400px;
   display: flex;
   flex-direction: column;
-  transition: box-shadow 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   &:hover {
-    box-shadow: 0 0 15px rgba(0, 188, 212, 0.8);
+    transform: translateY(-10px);
+    box-shadow: 0 0 20px rgba(0, 188, 212, 0.8);
   }
 `;
-
 const CardMediaStyled = styled(CardMedia)`
-  height: 140px;
+  height: 180px;
 `;
-
 const CardContentStyled = styled(CardContent)`
   padding: 1rem;
+  flex-grow: 1;
 `;
 
 const Home = () => {
-  // Offerings data
+  // Offerings updated to match the key phases
   const offerings = [
-    { title: 'Data Assessment', description: 'Analyze training data for contamination, bias, and anomalies.', image: '/assets/offerings/data.png' },
-    { title: 'Model Assessment', description: 'Scan AI model code for vulnerabilities and integrity issues.', image: '/assets/offerings/model.png' },
-    { title: 'Attack Simulation', description: 'Simulate adversarial attacks to test model resilience.', image: '/assets/offerings/attack.png' },
-    { title: 'Dashboard & Recommendations', description: 'Receive actionable insights to remediate identified vulnerabilities.', image: '/assets/offerings/dashboard.png' }
+    { 
+      title: 'Framework Vulnerability Assessment',
+      description: 'Assess your AI model frameworks against known vulnerabilities using comprehensive CVE analysis.',
+      image: '/assets/offerings/model.png'
+    },
+    { 
+      title: 'Code Assessment',
+      description: 'Upload your code for a thorough security scan and uncover hidden vulnerabilities.',
+      image: '/assets/offerings/data.png'  // Ensure you have a distinct code image file
+    },
+    { 
+      title: 'Attack Simulation',
+      description: 'Simulate adversarial attacks to evaluate your model’s resilience against malicious inputs.',
+      image: '/assets/offerings/attack.png'
+    },
+    { 
+      title: 'Compliance Assessment',
+      description: 'Check your compliance with AI regulatory frameworks and get actionable recommendations.',
+      image: '/assets/offerings/compliance.png'
+    },
+    { 
+      title: 'Assessment Dashboard',
+      description: 'View detailed metrics, interactive charts, and comprehensive reports in one central platform.',
+      image: '/assets/offerings/dashboard.png'
+    }
   ];
 
-  // FAQ data
+  // FAQ data updated for clarity
   const faqs = [
     {
       question: "What is NeuroShield?",
-      answer: "NeuroShield is a comprehensive security toolkit designed to detect and mitigate vulnerabilities in machine learning and AI systems. It covers data integrity, model robustness, and real-time attack simulations."
+      answer: "NeuroShield is a comprehensive security toolkit designed to protect AI systems by evaluating data integrity, code vulnerabilities, attack resilience, and regulatory compliance."
     },
     {
-      question: "Why is privacy and security important for AI systems?",
-      answer: "AI systems are often deployed in critical areas such as healthcare, finance, and autonomous vehicles. Vulnerabilities can lead to data poisoning, adversarial attacks, and unauthorized access, potentially causing catastrophic failures or privacy breaches."
+      question: "Why is security critical for AI systems?",
+      answer: "AI systems drive crucial decisions in healthcare, finance, and public services. Vulnerabilities can lead to data breaches, model manipulation, and operational risks, making robust security essential."
     },
     {
-      question: "What types of vulnerabilities does NeuroShield detect?",
-      answer: "NeuroShield identifies a range of vulnerabilities including data poisoning, backdoor attacks, and adversarial manipulations, ensuring that both the training data and model code remain secure."
+      question: "How does NeuroShield work?",
+      answer: "It combines framework assessments, static code scans, adversarial attack simulations, and compliance evaluations to provide a complete picture of your AI system’s security."
     },
     {
-      question: "How does NeuroShield help remediate vulnerabilities?",
-      answer: "It provides actionable recommendations and best practices tailored to the identified issues, allowing organizations to prioritize mitigations and improve the overall security posture of their AI systems."
+      question: "What are the benefits of using NeuroShield?",
+      answer: "NeuroShield improves risk management, ensures compliance, mitigates financial losses, and enhances trust by continuously monitoring and remediating vulnerabilities."
     },
     {
-      question: "What are the key deliverables of the project?",
-      answer: "The deliverables include a fully functional security toolkit, comprehensive user and technical documentation, a GitHub repository with source code, a demo video, and integrated APIs for seamless deployment."
+      question: "Who should use NeuroShield?",
+      answer: "Organizations deploying AI in critical sectors such as healthcare, finance, and technology can benefit from NeuroShield’s proactive security measures."
     }
   ];
 
@@ -3351,35 +3962,35 @@ const Home = () => {
     <>
       {/* Hero Section */}
       <HeroSection>
-        <motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }}>
-          <Typography variant="h2" style={{ fontWeight: 'bold' }}>
-            Welcome to NeuroShield
-          </Typography>
-          <Typography variant="h5" style={{ margin: '1rem 0' }}>
-            Securing AI Systems Against Evolving Threats
-          </Typography>
-          <Typography variant="body1" style={{ maxWidth: '700px', margin: '0 auto 2rem' }}>
-            NeuroShield is a cutting-edge security toolkit that helps you detect, assess, and mitigate vulnerabilities across the entire lifecycle of your AI systems—from ensuring data integrity to safeguarding your deployed models.
-          </Typography>
-          <Button component={Link} to="/tester-login" variant="contained" style={{ backgroundColor: '#ffffff', color: '#00bcd4', fontWeight: 'bold' }}>
-            Get Started
-          </Button>
-        </motion.div>
+        <HeroContent>
+          <motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }}>
+            <Typography variant="h2" style={{ fontWeight: 'bold' }}>
+              Welcome to NeuroShield
+            </Typography>
+            <Typography variant="h5" style={{ margin: '1rem 0' }}>
+              Securing AI Systems Against Evolving Threats
+            </Typography>
+            <Typography variant="body1" style={{ maxWidth: '700px', margin: '0 auto 2rem' }}>
+              NeuroShield is a state-of-the-art security platform that detects, assesses, and mitigates vulnerabilities throughout your AI system’s lifecycle. Protect your critical infrastructure today.
+            </Typography>
+            <Button component={Link} to="/tester-login" variant="contained" style={{ backgroundColor: '#ffffff', color: '#00bcd4', fontWeight: 'bold' }}>
+              Get Started
+            </Button>
+          </motion.div>
+        </HeroContent>
       </HeroSection>
 
       {/* Offerings Section */}
       <OfferingsSection>
-        <Typography variant="h4" align="center" style={{ marginBottom: '2rem', color: '#00bcd4', fontWeight: 'bold' }}>
+        <SectionTitle variant="h4" align="center">
           Our Offerings
-        </Typography>
+        </SectionTitle>
         <Grid container spacing={3} justifyContent="center">
           {offerings.map((offer, index) => (
             <Grid item key={index}>
               <motion.div whileHover={{ scale: 1.05 }}>
                 <OfferingCard>
-                  {offer.image && (
-                    <CardMediaStyled component="img" image={offer.image} alt={offer.title} />
-                  )}
+                  <CardMediaStyled component="img" image={offer.image} alt={offer.title} />
                   <CardContentStyled>
                     <Typography variant="h6" gutterBottom style={{ color: '#00bcd4', fontWeight: 'bold' }}>
                       {offer.title}
@@ -3395,41 +4006,56 @@ const Home = () => {
         </Grid>
       </OfferingsSection>
 
-      {/* Why Privacy & Security Matters Section */}
+      {/* Impact Section */}
+      <ImpactSection>
+        <SectionTitle variant="h4" align="center">
+          Our Impact
+        </SectionTitle>
+        <SectionParagraph variant="body1">
+          Organizations using NeuroShield report significant improvements in risk management, compliance adherence, and overall security posture.
+        </SectionParagraph>
+        <Box mt={2}>
+          <Typography variant="h6" style={{ color: '#00bcd4', fontWeight: 'bold' }}>
+            Trusted by Industry Leaders
+          </Typography>
+          <Typography variant="body2">
+            Join a community of forward-thinking enterprises securing their AI infrastructure with NeuroShield.
+          </Typography>
+        </Box>
+      </ImpactSection>
+
+      {/* Concern Section */}
       <ConcernSection>
-        <Typography variant="h4" align="center" style={{ marginBottom: '2rem', color: '#ffffff', fontWeight: 'bold' }}>
+        <SectionTitle variant="h4" align="center">
           Why Privacy & Security Matters
-        </Typography>
-        <Typography variant="body1" paragraph style={{ color: '#ffffff' }}>
-          In today's digital era, AI systems are at the core of decision-making across healthcare, finance, and national security. However, these systems are only as secure as the data and models behind them. As cyber threats become more sophisticated, ensuring privacy and security is not optional—it’s a necessity.
-        </Typography>
-        <Typography variant="body1" paragraph style={{ color: '#ffffff' }}>
-          Vulnerabilities in data collection, model design, and deployment can expose sensitive information, compromise model integrity, and even lead to catastrophic outcomes. NeuroShield addresses these challenges by providing a multi-layered defense that continuously monitors, assesses, and mitigates potential risks.
-        </Typography>
-        <Typography variant="body1" paragraph style={{ color: '#ffffff' }}>
-          Key concerns include:
-        </Typography>
+        </SectionTitle>
+        <SectionParagraph variant="body1">
+          In today's digital era, AI systems drive mission-critical decisions. However, vulnerabilities in data, code, or model deployment can lead to severe breaches and system failures.
+        </SectionParagraph>
+        <SectionParagraph variant="body1">
+          NeuroShield’s multi-layered defense strategy proactively identifies and mitigates risks to safeguard your AI investments.
+        </SectionParagraph>
         <List>
           <ListItem>
-            <ListItemText primary="Data Poisoning: Malicious manipulation of training data can skew predictions." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
+            <ListItemText primary="Data Poisoning: Prevent unauthorized manipulation of training data." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
           </ListItem>
           <ListItem>
-            <ListItemText primary="Adversarial Attacks: Subtle perturbations in input data can force AI models to make incorrect decisions." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
+            <ListItemText primary="Adversarial Attacks: Shield your models from crafted inputs meant to mislead predictions." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
           </ListItem>
           <ListItem>
-            <ListItemText primary="Model Integrity: Ensuring that models are not tampered with during or after deployment is crucial for reliability." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
+            <ListItemText primary="Model Integrity: Ensure your deployed models remain secure and unaltered." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
           </ListItem>
           <ListItem>
-            <ListItemText primary="Privacy: Protecting sensitive user data from unauthorized access is of utmost importance." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
+            <ListItemText primary="Privacy Compliance: Protect sensitive data and adhere to regulatory standards." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
           </ListItem>
         </List>
       </ConcernSection>
 
       {/* FAQ Section */}
       <FAQSection>
-        <Typography variant="h4" align="center" style={{ marginBottom: '2rem', color: '#00bcd4', fontWeight: 'bold' }}>
+        <SectionTitle variant="h4" align="center">
           Frequently Asked Questions
-        </Typography>
+        </SectionTitle>
         {faqs.map((faq, index) => (
           <Accordion key={index} style={{ backgroundColor: '#1a1a1a', color: '#ffffff', marginBottom: '1rem' }}>
             <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
@@ -3441,6 +4067,19 @@ const Home = () => {
           </Accordion>
         ))}
       </FAQSection>
+
+      {/* Call-to-Action Section */}
+      <CTASection>
+        <Typography variant="h4" style={{ color: '#00bcd4', fontWeight: 'bold', marginBottom: '1rem' }}>
+          Ready to Secure Your AI?
+        </Typography>
+        <Typography variant="body1" style={{ maxWidth: '600px', margin: '0 auto 2rem', color: '#fff' }}>
+          Take the first step toward a secure AI infrastructure. Login now and harness the power of NeuroShield to safeguard your critical systems.
+        </Typography>
+        <Button component={Link} to="/tester-login" variant="contained" style={{ backgroundColor: '#ffffff', color: '#00bcd4', fontWeight: 'bold' }}>
+          Get Started
+        </Button>
+      </CTASection>
     </>
   );
 };
@@ -3563,6 +4202,268 @@ const Signup = () => {
 };
 
 export default Signup;
+
+
+--- ./client/src/pages/AnalysisDashboard.js ---
+// client/src/pages/AnalysisDashboard.js
+import React, { useEffect, useState } from 'react';
+import { Container, Box, Typography, Paper, Button, LinearProgress } from '@mui/material';
+import styled from 'styled-components';
+import { motion } from 'framer-motion';
+import axios from 'axios';
+import { jsPDF } from 'jspdf';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend
+} from 'recharts';
+
+// ------------------------
+// Styled Components
+// ------------------------
+
+const AnalysisContainer = styled(Container)`
+  margin-top: 4rem;
+  min-height: 100vh;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0d1117, #1c1e26);
+  padding: 2rem;
+  border-radius: 8px;
+`;
+
+const SectionTitle = styled(Typography)`
+  color: #00bcd4;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  text-align: center;
+`;
+
+const SectionParagraph = styled(Typography)`
+  margin-bottom: 1rem;
+  text-align: center;
+`;
+
+const CardContainer = styled(Paper)`
+  background-color: #161b22;
+  padding: 1rem 2rem;
+  margin: 1rem 0;
+  border-radius: 10px;
+  box-shadow: 0px 4px 8px rgba(0,188,212,0.4);
+`;
+
+const ChartPaper = styled(Paper)`
+  background-color: #161b22;
+  padding: 1rem;
+  margin-top: 2rem;
+  border-radius: 10px;
+  box-shadow: 0px 4px 12px rgba(0,0,0,0.6);
+`;
+
+const RecommendationsPaper = styled(Paper)`
+  background-color: #161b22;
+  padding: 1rem 2rem;
+  margin-top: 2rem;
+  border-radius: 10px;
+  box-shadow: 0px 4px 8px rgba(0,188,212,0.4);
+`;
+
+const ActionButton = styled(Button)`
+  background: linear-gradient(45deg, #00bcd4, #00838f) !important;
+  color: #ffffff !important;
+  font-weight: bold;
+  margin: 1rem auto !important;
+  display: block;
+  &:hover {
+    background: linear-gradient(45deg, #00838f, #006064) !important;
+  }
+`;
+
+// ------------------------
+// Main Component
+// ------------------------
+
+export default function AnalysisDashboard() {
+  const [scoreData, setScoreData] = useState({ code: 0, model: 0, compliance: 0, attack: 0 });
+  const [trendData, setTrendData] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch the analysis data from your API (make sure to secure the request with a token)
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        // Ensure withCredentials is set if you need cookies to be sent
+        const response = await axios.get('http://localhost:5000/api/analysis', {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true,
+        });
+        // Assume response.data returns { scoreData, trendData, recommendations }
+        setScoreData(response.data.scoreData);
+        setTrendData(response.data.trendData);
+        setRecommendations(response.data.recommendations);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching analysis data:', err);
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Handler to download a full report PDF
+  const handleDownloadReport = () => {
+    const doc = new jsPDF({ unit: 'pt' });
+    let y = 40;
+    doc.setFontSize(18);
+    doc.text('AI Assessment Full Report', 40, y);
+    y += 30;
+
+    doc.setFontSize(12);
+    doc.text(`Code Assessment: ${scoreData.code}/100`, 40, y);
+    y += 20;
+    doc.text(`Model Assessment: ${scoreData.model}/100`, 40, y);
+    y += 20;
+    doc.text(`Compliance: ${scoreData.compliance}/100`, 40, y);
+    y += 20;
+    doc.text(`Attack Simulation: ${scoreData.attack}/100`, 40, y);
+    y += 30;
+
+    doc.text('Score Trend Data:', 40, y);
+    y += 20;
+    trendData.forEach((point, idx) => {
+      const line = `${point.day}: Code ${point.code}, Model ${point.model}, Compliance ${point.compliance}, Attack ${point.attack}`;
+      if (y > 700) { // If y exceeds page height, add a page
+        doc.addPage();
+        y = 40;
+      }
+      doc.text(line, 40, y);
+      y += 15;
+    });
+    y += 20;
+    doc.text('Recommendations:', 40, y);
+    y += 20;
+    recommendations.forEach((rec, idx) => {
+      const line = `${idx + 1}. ${rec}`;
+      if (y > 700) {
+        doc.addPage();
+        y = 40;
+      }
+      doc.text(line, 40, y);
+      y += 15;
+    });
+
+    doc.save('AI_Assessment_Full_Report.pdf');
+  };
+
+  if (loading) {
+    return (
+      <AnalysisContainer>
+        <Typography variant="h5" align="center">Loading analysis data...</Typography>
+      </AnalysisContainer>
+    );
+  }
+
+  return (
+    <AnalysisContainer>
+      <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+        <SectionTitle variant="h4">Your AI Security Analysis</SectionTitle>
+        <SectionParagraph variant="body1">
+          Below you can review your latest assessment results. The progress bars represent your scores, and the trend chart below shows historical performance.
+        </SectionParagraph>
+        
+        {/* Score Cards/Progress Bars */}
+        <Box display="flex" flexDirection="column" gap={2}>
+          <CardContainer>
+            <Typography variant="h6" style={{ color: '#00bcd4' }}>Code Assessment</Typography>
+            <Typography variant="subtitle2">{scoreData.code}/100</Typography>
+            <LinearProgress
+              variant="determinate"
+              value={scoreData.code}
+              sx={{ height: 10, borderRadius: 5, marginTop: 1 }}
+            />
+          </CardContainer>
+          
+          <CardContainer>
+            <Typography variant="h6" style={{ color: '#00bcd4' }}>Model Assessment</Typography>
+            <Typography variant="subtitle2">{scoreData.model}/100</Typography>
+            <LinearProgress
+              variant="determinate"
+              value={scoreData.model}
+              sx={{ height: 10, borderRadius: 5, marginTop: 1 }}
+            />
+          </CardContainer>
+          
+          <CardContainer>
+            <Typography variant="h6" style={{ color: '#00bcd4' }}>Compliance</Typography>
+            <Typography variant="subtitle2">{scoreData.compliance}/100</Typography>
+            <LinearProgress
+              variant="determinate"
+              value={scoreData.compliance}
+              sx={{ height: 10, borderRadius: 5, marginTop: 1 }}
+            />
+          </CardContainer>
+          
+          <CardContainer>
+            <Typography variant="h6" style={{ color: '#00bcd4' }}>Attack Simulation</Typography>
+            <Typography variant="subtitle2">{scoreData.attack}/100</Typography>
+            <LinearProgress
+              variant="determinate"
+              value={scoreData.attack}
+              sx={{ height: 10, borderRadius: 5, marginTop: 1 }}
+            />
+          </CardContainer>
+        </Box>
+
+        <Box textAlign="center" mt={2}>
+          <ActionButton onClick={handleDownloadReport} variant="contained">
+            Download Full Report
+          </ActionButton>
+        </Box>
+
+        {/* Score Trends Chart */}
+        <ChartPaper>
+          <Typography variant="h6" style={{ color: '#00bcd4', marginBottom: '1rem' }}>
+            Historical Score Trends
+          </Typography>
+          <Box width="100%" height={300}>
+            <ResponsiveContainer>
+              <LineChart data={trendData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
+                <XAxis dataKey="day" stroke="#ffffff" />
+                <YAxis domain={[0, 100]} stroke="#ffffff" />
+                <Tooltip contentStyle={{ backgroundColor: '#161b22', color: '#fff' }} />
+                <Legend wrapperStyle={{ color: '#00bcd4' }}/>
+                <Line type="monotone" dataKey="code" stroke="#8884d8" name="Code" strokeWidth={2}/>
+                <Line type="monotone" dataKey="model" stroke="#82ca9d" name="Model" strokeWidth={2}/>
+                <Line type="monotone" dataKey="compliance" stroke="#ffc658" name="Compliance" strokeWidth={2}/>
+                <Line type="monotone" dataKey="attack" stroke="#ff7300" name="Attack" strokeWidth={2}/>
+              </LineChart>
+            </ResponsiveContainer>
+          </Box>
+        </ChartPaper>
+
+        {/* Recommendations Section */}
+        <RecommendationsPaper>
+          <Typography variant="h6" style={{ color: '#00bcd4', marginBottom: '1rem' }}>
+            Recommendations:
+          </Typography>
+          <Box component="ul" sx={{ paddingLeft: '1.2rem', margin: 0 }}>
+            {recommendations.map((rec, idx) => (
+              <li key={idx} style={{ marginBottom: '0.5rem', color: '#ffffff' }}>{rec}</li>
+            ))}
+          </Box>
+        </RecommendationsPaper>
+      </motion.div>
+    </AnalysisContainer>
+  );
+}
 
 
 --- ./client/src/pages/Privacy.js ---
@@ -3834,7 +4735,7 @@ const Contact = () => {
             <strong>Email:</strong> info@neuroshield.com
           </Typography>
           <Typography variant="body1">
-            <strong>Phone:</strong> +961-70-788088
+            <strong>Phone:</strong> +961-XXXXXX
           </Typography>
           <Typography variant="body1">
             <strong>Office Hours:</strong> Monday - Friday, 9AM - 5PM (GMT+3)
@@ -4228,18 +5129,25 @@ const TesterDashboard = () => {
       link: '/adversarial-attack-simulation'
     },
     {
-      title: 'Assessment Dashboard',
-      description: 'View detailed metrics and recommendations.',
-      detail: 'Access interactive charts, detailed reports, and tailored remediation strategies in one centralized dashboard.',
-      image: '/assets/offerings/dashboard.png',
+      title: 'Compliance & Regulation Assessment',
+      description: 'Check your compliance against AI regulatory frameworks.',
+      detail: 'Evaluate your organization’s compliance with guidelines such as NIST AI RMF and NIST SP 800-226, then receive actionable recommendations.',
+      image: '/assets/offerings/compliance.png',
+      link: '/compliance-assessment'
+    },
+    {
+      title: 'Assessment History',
+      description: 'View historical assessments and details.',
+      detail: 'Access historical assessment data, including scores, trends, and detailed reports.',
+      image: '/assets/offerings/history.png',
       link: '/assessment-dashboard'
     },
     {
-      title: 'Compliance & Regulation Assessment',
-      description: 'Check your compliance against AI regulatory frameworks.',
-      detail: 'Evaluate your organization’s compliance with guidelines such as NIST AI RMF, NIST SP 800-226, and ISO 27001, and receive actionable recommendations.',
-      image: '/assets/offerings/compliance.png',
-      link: '/compliance-assessment'
+      title: 'Analysis & Dashboard',
+      description: 'View historical score trends, progress bars, and recommendations.',
+      image: '/assets/offerings/dashboard.png',
+      detail: 'Access interactive charts, detailed reports, and tailored remediation strategies in one centralized dashboard.',
+      link: '/analysis-dashboard'
     }
   ];
 
@@ -4711,7 +5619,9 @@ const AssessmentDashboard = () => {
   const filteredAssessments = assessments.filter((assessment) => {
     if (tabValue === 0) return true;
     if (tabValue === 1) return assessment.type.toLowerCase() === "vulnerability";
-    if (tabValue === 2) return assessment.type.toLowerCase() === "deployed";
+    if (tabValue === 2)
+      // Updated condition: include both 'deployed' and 'adversarial' assessments for the Attack Assessment tab
+      return ["deployed", "adversarial"].includes(assessment.type.toLowerCase());
     if (tabValue === 3) return assessment.type.toLowerCase() === "code";
     if (tabValue === 4) return assessment.type.toLowerCase() === "compliance";
     return true;
