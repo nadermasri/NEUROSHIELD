@@ -119,7 +119,7 @@ const TesterDashboard = () => {
     {
       title: 'Compliance & Regulation Assessment',
       description: 'Check your compliance against AI regulatory frameworks.',
-      detail: 'Evaluate your organization’s compliance with guidelines such as NIST AI RMF, NIST SP 800-226, and ISO 27001, and receive actionable recommendations.',
+      detail: 'Evaluate your organization’s compliance with guidelines such as NIST AI RMF and NIST SP 800-226, then receive actionable recommendations.',
       image: '/assets/offerings/compliance.png',
       link: '/compliance-assessment'
     }

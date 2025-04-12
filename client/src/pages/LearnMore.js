@@ -1,11 +1,21 @@
 // client/src/pages/LearnMore.js
 import React from 'react';
-import { Container, Typography, Accordion, AccordionSummary, AccordionDetails, List, ListItem, ListItemText } from '@mui/material';
+import { Container, Typography, Accordion, AccordionSummary, AccordionDetails, List, ListItem, ListItemText, Box } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import styled from 'styled-components';
 
 const LearnMoreContainer = styled(Container)`
   padding: 4rem;
+`;
+
+const SectionHeader = styled(Typography)`
+  color: #00bcd4;
+  font-weight: bold;
+  margin-bottom: 1rem;
+`;
+
+const SectionParagraph = styled(Typography)`
+  margin-bottom: 1rem;
 `;
 
 const LearnMore = () => {
@@ -14,56 +24,94 @@ const LearnMore = () => {
       <Typography variant="h3" align="center" style={{ color: '#00bcd4', fontWeight: 'bold', marginBottom: '2rem' }}>
         Learn More About NeuroShield
       </Typography>
+      
+      {/* Proposed Solution Methodology updated to reflect the five phases */}
       <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff', marginBottom: '1rem' }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
-          <Typography style={{ color: '#00bcd4', fontWeight: 'bold' }}>Proposed Solution Methodology</Typography>
+          <SectionHeader variant="h6">Proposed Solution Methodology</SectionHeader>
         </AccordionSummary>
         <AccordionDetails>
-          <Typography variant="body2" paragraph>
-            NeuroShield’s solution is divided into four key phases:
-          </Typography>
+          <SectionParagraph variant="body2">
+            NeuroShield’s comprehensive solution is divided into five integrated phases:
+          </SectionParagraph>
           <List>
             <ListItem>
-              <ListItemText primary="Data Assessment: Collect and clean training data, identify biases and anomalies, and detect data poisoning attempts." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
+              <ListItemText 
+                primary="Framework Vulnerability Assessment: Assess your AI model frameworks for potential vulnerabilities." 
+                secondary="Cross-reference framework versions against known vulnerabilities to assign risk scores and define mitigation tips." 
+                primaryTypographyProps={{ style: { color: '#ffffff', fontWeight: 'bold' } }}
+                secondaryTypographyProps={{ style: { color: '#ffffff' } }}
+              />
             </ListItem>
             <ListItem>
-              <ListItemText primary="Model Assessment: Evaluate your AI model’s source code and architecture for vulnerabilities using advanced tools like CodeBERT." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
+              <ListItemText 
+                primary="Code Assessment: Upload your code for security analysis." 
+                secondary="Run advanced static analysis tools to uncover hidden vulnerabilities and ensure adherence to coding best practices." 
+                primaryTypographyProps={{ style: { color: '#ffffff', fontWeight: 'bold' } }}
+                secondaryTypographyProps={{ style: { color: '#ffffff' } }}
+              />
             </ListItem>
             <ListItem>
-              <ListItemText primary="Attack Simulation: Simulate real-world adversarial attacks to stress-test model robustness and identify hidden vulnerabilities." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
+              <ListItemText 
+                primary="Adversarial Attack Simulation: Simulate adversarial attacks on your AI models." 
+                secondary="Evaluate your model’s resilience by simulating various real-world attack scenarios and analyzing their impact." 
+                primaryTypographyProps={{ style: { color: '#ffffff', fontWeight: 'bold' } }}
+                secondaryTypographyProps={{ style: { color: '#ffffff' } }}
+              />
             </ListItem>
             <ListItem>
-              <ListItemText primary="Result Dashboard & Recommendation System: Present vulnerability scores, phase-specific insights, and actionable mitigation strategies in a user-friendly dashboard." primaryTypographyProps={{ style: { color: '#ffffff' } }} />
+              <ListItemText 
+                primary="Assessment Dashboard: View detailed metrics and recommendations." 
+                secondary="Access interactive charts and detailed reports that provide tailored remediation strategies in one centralized interface." 
+                primaryTypographyProps={{ style: { color: '#ffffff', fontWeight: 'bold' } }}
+                secondaryTypographyProps={{ style: { color: '#ffffff' } }}
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Compliance & Regulation Assessment: Check your compliance against AI regulatory frameworks." 
+                secondary="Evaluate your organization’s adherence to standards like NIST AI RMF and NIST SP 800-226 to receive actionable, compliance-specific recommendations." 
+                primaryTypographyProps={{ style: { color: '#ffffff', fontWeight: 'bold' } }}
+                secondaryTypographyProps={{ style: { color: '#ffffff' } }}
+              />
             </ListItem>
           </List>
-          <Typography variant="body2">
-            These phases work together to provide a complete security evaluation, enabling organizations to secure their AI systems against emerging threats.
-          </Typography>
         </AccordionDetails>
       </Accordion>
+
+      {/* Technical & Non-Technical Constraints */}
       <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff', marginBottom: '1rem' }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
-          <Typography style={{ color: '#00bcd4', fontWeight: 'bold' }}>Technical & Non-Technical Constraints</Typography>
+          <SectionHeader variant="h6">Technical & Non-Technical Constraints</SectionHeader>
         </AccordionSummary>
         <AccordionDetails>
-          <Typography variant="body2" paragraph>
-            <strong>Technical Constraints:</strong> High computational resources, support for diverse frameworks (TensorFlow, PyTorch, ONNX), and real-time processing capabilities are critical to our solution.
-          </Typography>
-          <Typography variant="body2">
-            <strong>Non-Technical Constraints:</strong> Compliance with industry standards (IEEE, NIST, ISO, OWASP) and regulatory requirements is essential for building trust and ensuring the solution is legally sound.
-          </Typography>
+          <SectionParagraph variant="body2" paragraph>
+            <strong>Technical Constraints:</strong> High-performance computing resources, support for diverse frameworks (such as TensorFlow, PyTorch, and ONNX), and real-time processing are essential.
+          </SectionParagraph>
+          <SectionParagraph variant="body2">
+            <strong>Non-Technical Constraints:</strong> Adherence to industry standards (IEEE, NIST, ISO, OWASP) and compliance with regulatory requirements are key to building a trusted and legally sound solution.
+          </SectionParagraph>
         </AccordionDetails>
       </Accordion>
+
+      {/* Deliverables & Additional Features */}
       <Accordion style={{ backgroundColor: '#1a1a1a', color: '#ffffff' }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon style={{ color: '#00bcd4' }} />}>
-          <Typography style={{ color: '#00bcd4', fontWeight: 'bold' }}>Deliverables & Additional Features</Typography>
+          <SectionHeader variant="h6">Deliverables & Additional Features</SectionHeader>
         </AccordionSummary>
         <AccordionDetails>
-          <Typography variant="body2">
-            NeuroShield delivers a fully functional vulnerability detection tool, comprehensive documentation, a GitHub repository containing the source code, API integrations for seamless deployment, and a demo video. These deliverables ensure that organizations can confidently integrate robust security measures into their AI workflows.
-          </Typography>
+          <SectionParagraph variant="body2">
+            NeuroShield delivers a fully functional vulnerability detection tool, comprehensive documentation, an open-source GitHub repository, seamless API integrations for easy deployment, and a demo video. These deliverables ensure organizations can quickly and confidently integrate robust security measures into their AI workflows.
+          </SectionParagraph>
         </AccordionDetails>
       </Accordion>
+
+      {/* Additional Footer Information */}
+      <Box mt={4} textAlign="center">
+        <Typography variant="body2" style={{ color: '#aaa' }}>
+          NeuroShield © {new Date().getFullYear()}. Pioneering the future of secure AI.
+        </Typography>
+      </Box>
     </LearnMoreContainer>
   );
 };

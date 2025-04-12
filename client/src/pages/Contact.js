@@ -171,7 +171,7 @@ const Contact = () => {
             <strong>Email:</strong> info@neuroshield.com
           </Typography>
           <Typography variant="body1">
-            <strong>Phone:</strong> +961-70-788088
+            <strong>Phone:</strong> +961-XXXXXX
           </Typography>
           <Typography variant="body1">
             <strong>Office Hours:</strong> Monday - Friday, 9AM - 5PM (GMT+3)
