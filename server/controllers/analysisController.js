@@ -1,13 +1,20 @@
 // server/controllers/analysisController.js
 const Assessment = require('../models/Assessment');
+const ComplianceAssessment = require('../models/ComplianceAssessment');
 
-exports.getAnalysisData = async (req, res) => {
+const getAnalysisData = async (req, res) => {
   try {
-    // Get all assessments for the logged-in user sorted by creation date
-    const userAssessments = await Assessment.find({ user: req.user.id }).sort({ createdAt: 1 });
-    
-    // If no assessments exist, return default values
-    if (userAssessments.length === 0) {
+    // Get assessments from the main Assessment collection (e.g., code, vulnerability, adversarial, etc.)
+    const assessments = await Assessment.find({ user: req.user.id }).sort({ createdAt: 1 });
+    // Get compliance assessments from the ComplianceAssessment collection
+    const complianceAssessments = await ComplianceAssessment.find({ user: req.user.id }).sort({ createdAt: 1 });
+
+    // Merge compliance assessments into a single array, forcing type to 'compliance'
+    const allAssessments = assessments.concat(
+      complianceAssessments.map(a => ({ ...a.toObject(), type: 'compliance' }))
+    );
+
+    if (allAssessments.length === 0) {
       return res.json({
         scoreData: { code: 0, compliance: 0, vulnerability: 0, attack: 0 },
         trendData: [],
@@ -15,93 +22,83 @@ exports.getAnalysisData = async (req, res) => {
       });
     }
 
-    // Accumulators for different assessment types
-    let codeTotal = 0, codeCount = 0;
-    let complianceTotal = 0, complianceCount = 0;
-    let vulnerabilityTotal = 0, vulnerabilityCount = 0;
-    let attackTotal = 0, attackCount = 0;
-
-    // For trend data, create an array of objects for each assessment date
+    // Arrays to accumulate scores for each assessment type
+    let codeScores = [];
+    let complianceScores = [];
+    let vulnerabilityScores = [];
+    let attackScores = [];
     let trendData = [];
-    
-    userAssessments.forEach(assessment => {
-      const day = assessment.createdAt.toISOString().slice(0,10); // e.g., "2025-04-12"
 
-      // For Code assessments, use the averageSeverity (if available) transformed to a score
-      if (assessment.type.toLowerCase() === "code") {
-        if (assessment.data && assessment.data.summary && assessment.data.summary.averageSeverity) {
-          const avgSeverity = parseFloat(assessment.data.summary.averageSeverity);
-          // Transform: lower severity yields a higher score. If severity can be up to 3, do:
-          const score = Math.max(0, Math.round(100 - ((avgSeverity / 3) * 100)));
-          codeTotal += score;
-          codeCount++;
-          trendData.push({ day, code: score });
-        }
-      }
-      // For Compliance assessments, use the numeric score stored in assessment.data.score
-      else if (assessment.type.toLowerCase() === "compliance") {
-        if (assessment.data && assessment.score != null) {
-          const score = parseFloat(assessment.score);
-          complianceTotal += score;
-          complianceCount++;
-          trendData.push({ day, compliance: score });
-        }
-      }
-      // For Vulnerability assessments, assume assessment.data.summary.risk_score exists.
-      // Here, a lower risk score means better security. We invert it: score = 100 - (risk_score * factor)
-      else if (assessment.type.toLowerCase() === "vulnerability") {
-        if (assessment.data && assessment.data.summary && assessment.data.summary.risk_score) {
+    // Loop through all assessments and compute the score for each type
+    allAssessments.forEach(assessment => {
+      const day = assessment.createdAt.toISOString().slice(0, 10);
+      const type = assessment.type.toLowerCase();
+
+      if (type === 'code') {
+        // For code assessments, use the count of vulnerabilities
+        const vulnCount = assessment.data && Array.isArray(assessment.data.vulnerabilities)
+          ? assessment.data.vulnerabilities.length
+          : 0;
+        // Example: Deduct 5 points per vulnerability from a base of 100.
+        const score = Math.max(0, 100 - (vulnCount * 5));
+        codeScores.push(score);
+        trendData.push({ day, code: score });
+      } else if (type === 'compliance') {
+        // For compliance assessments, the score is stored directly in the document's "score" field.
+        const score = assessment.score != null ? parseFloat(assessment.score) : 0;
+        complianceScores.push(score);
+        trendData.push({ day, compliance: score });
+      } else if (type === 'vulnerability') {
+        if (assessment.data && assessment.data.summary && assessment.data.summary.risk_score != null) {
           const riskScore = parseFloat(assessment.data.summary.risk_score);
-          // Use a factor (e.g., multiply risk score by 5) to transform into percentage
-          const score = Math.max(0, 100 - riskScore * 5);
-          vulnerabilityTotal += score;
-          vulnerabilityCount++;
+          // Example: A higher risk score gives a lower assessment value.
+          const score = Math.max(0, 100 - (riskScore * 5));
+          vulnerabilityScores.push(score);
           trendData.push({ day, vulnerability: score });
         }
-      }
-      // For Adversarial assessments, if simulationData.successRate exists (between 0 and 1, where lower is better)
-      else if (assessment.type.toLowerCase() === "adversarial") {
+      } else if (type === 'adversarial') {
         if (assessment.data && assessment.data.simulationData && assessment.data.simulationData.successRate != null) {
           const successRate = parseFloat(assessment.data.simulationData.successRate);
-          const score = Math.max(0, 100 - (successRate * 100)); // higher success rate means lower score
-          attackTotal += score;
-          attackCount++;
+          // Lower success rate of the adversarial attack results in a higher score.
+          const score = Math.max(0, 100 - (successRate * 100));
+          attackScores.push(score);
           trendData.push({ day, attack: score });
         }
       }
     });
 
-    // Compute average scores by type
-    const averageCode = codeCount > 0 ? Math.round(codeTotal / codeCount) : 0;
-    const averageCompliance = complianceCount > 0 ? Math.round(complianceTotal / complianceCount) : 0;
-    const averageVulnerability = vulnerabilityCount > 0 ? Math.round(vulnerabilityTotal / vulnerabilityCount) : 0;
-    const averageAttack = attackCount > 0 ? Math.round(attackTotal / attackCount) : 0;
-    
+    // Helper to compute averages
+    const average = (arr) => (arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0);
+
     const scoreData = {
-      code: averageCode,
-      compliance: averageCompliance,
-      vulnerability: averageVulnerability,
-      attack: averageAttack
+      code: average(codeScores),
+      compliance: average(complianceScores),
+      vulnerability: average(vulnerabilityScores),
+      attack: average(attackScores)
     };
 
-    // Merge trendData for dates (if there are multiple entries for a day, combine them)
+    // Merge trend data if multiple assessments fall on the same day
     const trendMap = {};
     trendData.forEach(obj => {
-      const day = obj.day;
-      if (!trendMap[day]) trendMap[day] = { day };
-      if (obj.code != null) trendMap[day].code = obj.code;
-      if (obj.compliance != null) trendMap[day].compliance = obj.compliance;
-      if (obj.vulnerability != null) trendMap[day].vulnerability = obj.vulnerability;
-      if (obj.attack != null) trendMap[day].attack = obj.attack;
+      const d = obj.day;
+      if (!trendMap[d]) trendMap[d] = { day: d };
+      if (obj.code !== undefined) trendMap[d].code = obj.code;
+      if (obj.compliance !== undefined) trendMap[d].compliance = obj.compliance;
+      if (obj.vulnerability !== undefined) trendMap[d].vulnerability = obj.vulnerability;
+      if (obj.attack !== undefined) trendMap[d].attack = obj.attack;
     });
     const mergedTrendData = Object.values(trendMap).sort((a, b) => new Date(a.day) - new Date(b.day));
 
-    // Build recommendations based on scores
+    // Build recommendations based on average scores (adjust thresholds as needed)
     let recommendations = [];
-    if (averageCode < 60) recommendations.push("Improve code security via regular audits and updated Snyk scans.");
-    if (averageCompliance < 70) recommendations.push("Review and update compliance policies.");
-    if (averageVulnerability < 60) recommendations.push("Address identified vulnerabilities immediately.");
-    if (averageAttack < 50) recommendations.push("Enhance model robustness against adversarial attacks.");
+    if (scoreData.code < 60)
+      recommendations.push("Improve code security by performing regular audits and using advanced static analysis.");
+    if (scoreData.compliance < 70)
+      recommendations.push("Review and update your compliance procedures.");
+    if (scoreData.vulnerability < 60)
+      recommendations.push("Address identified vulnerabilities immediately.");
+    if (scoreData.attack < 50)
+      recommendations.push("Enhance model robustness against adversarial attacks.");
 
     return res.json({
       scoreData,
@@ -109,7 +106,9 @@ exports.getAnalysisData = async (req, res) => {
       recommendations
     });
   } catch (err) {
-    console.error("Error in analysisController:", err);
+    console.error("Error in getAnalysisData:", err);
     res.status(500).json({ error: "Failed to compute analysis data." });
   }
 };
+
+module.exports = { getAnalysisData };
