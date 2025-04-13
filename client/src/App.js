@@ -21,10 +21,14 @@ import CodeAssessment from './pages/CodeAssessment';
 import AssessmentDashboard from './pages/AssessmentDashboard';
 import ComplianceAssessment from './pages/ComplianceAssessment';
 import AnalysisDashboard from './pages/AnalysisDashboard';
+import { ToastContainer } from "react-toastify";
+import 'react-toastify/dist/ReactToastify.css';
+import AutoLogout from "./components/AutoLogout";
 function App() {
   return (
     <>
       <Navbar />
+      <AutoLogout />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
@@ -44,8 +48,9 @@ function App() {
         <Route path="/assessment-dashboard" element={<AssessmentDashboard />} />
         <Route path="/compliance-assessment" element={<ComplianceAssessment />} />
         <Route path="/analysis-dashboard" element={<AnalysisDashboard />} />
-
+        
       </Routes>
+      <ToastContainer position="top-center" autoClose={3000} />
       <Footer />
     </>
   );

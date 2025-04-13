@@ -18,8 +18,11 @@ const assessmentRoutes = require("./routes/assessment");
 const contactRoutes = require("./routes/contact");
 const vulnerabilityRoutes = require("./routes/vulnerability"); // Added vulnerability route
 const scanRoute = require("./routes/scanRoute");
-
+const mongoSanitize = require("express-mongo-sanitize"); 
 const app = express();
+const logRoutes = require('./routes/adminLogs');
+
+app.use('/api/logs', logRoutes);
 
 // Security middleware
 app.use(helmet());
@@ -39,6 +42,7 @@ app.options("*", cors());
 app.use(bodyParser.json({ limit: "100mb" }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "100mb" }));
 
+app.use(mongoSanitize());
 // Global rate limiter
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
