@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 import styled from "styled-components";
 import UploadIcon from "@mui/icons-material/Upload";
-import axios from "axios";
+import axios from "../utils/axiosInstance";
 
 const AssessmentContainer = styled(Container)`
   min-height: 100vh;
